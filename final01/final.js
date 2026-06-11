@@ -251,33 +251,36 @@ function showResetModal() {
     if (modal) modal.style.display = "flex";
     // ...
 }// ============================================================
-// SECTION 11 — RECOVERY FLOW (FIXED)
+// ============================================================
+// SECTION 11 — RECOVERY FLOW (PKCE-COMPATIBLE)
 // ============================================================
 
-// 1. Check URL hash immediately on page load
-const hashParams = new URLSearchParams(window.location.hash.replace('#', '?'));
-const accessToken = hashParams.get('access_token');
-const tokenType   = hashParams.get('type');
+document.addEventListener("DOMContentLoaded", async () => {
 
-if (accessToken && tokenType === 'recovery') {
-    // Show the modal right away before waiting for the auth event
-    document.addEventListener("DOMContentLoaded", () => {
+    // 1. Check for ?code= in the URL (Supabase PKCE recovery link)
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get("code");
+
+    if (code) {
+        // Exchange the code for a real session
+        const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+
+        if (error) {
+            console.error("Session exchange failed:", error.message);
+            alert("Reset link is invalid or expired. Please request a new one.");
+            return;
+        }
+
+        // Clean the URL so refreshing doesn't re-trigger this
+        window.history.replaceState({}, document.title, window.location.pathname);
+
+        // Show the reset modal
         const modal = document.getElementById("resetPasswordModal");
         if (modal) modal.style.display = "flex";
-    });
-}
+    }
 
-// 2. Auth state listener as a fallback
-supabase.auth.onAuthStateChange((event, session) => {
-    if (event !== "PASSWORD_RECOVERY") return;
-
-    const modal = document.getElementById("resetPasswordModal");
-    if (modal) modal.style.display = "flex";
-});
-
-// 3. Bind the form submit — attach to the FORM, not the modal wrapper
-document.addEventListener("DOMContentLoaded", () => {
-    const form = document.getElementById("resetForm"); // ✅ correct ID
+    // 2. Bind the reset form
+    const form = document.getElementById("resetForm");
     if (!form || form.dataset.bound) return;
     form.dataset.bound = "true";
 
@@ -302,8 +305,19 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        alert("Password updated successfully!");
-        await supabase.auth.signOut();
-        window.location.href = "/index.html";
+        messageBox.style.color = "green";
+        messageBox.textContent = "Password updated!";
+
+        setTimeout(async () => {
+            await supabase.auth.signOut();
+            window.location.href = "/index.html";
+        }, 1500);
     });
+});
+
+// 3. Fallback — onAuthStateChange still handles edge cases
+supabase.auth.onAuthStateChange((event, session) => {
+    if (event !== "PASSWORD_RECOVERY") return;
+    const modal = document.getElementById("resetPasswordModal");
+    if (modal) modal.style.display = "flex";
 });
