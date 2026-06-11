@@ -248,7 +248,11 @@ document.querySelectorAll(".toggle-password").forEach((toggle) => {
 // ============================================================
 
 async function handleRecovery() {
-    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const hash = window.location.hash;
+
+    if (!hash.includes("access_token")) return;
+
+    const hashParams = new URLSearchParams(hash.substring(1));
 
     const access_token = hashParams.get("access_token");
     const refresh_token = hashParams.get("refresh_token");
@@ -261,55 +265,51 @@ async function handleRecovery() {
     });
 
     if (error) {
-        console.error("Session error:", error.message);
+        console.error(error.message);
         return;
     }
 
-    // 🔥 FIX: prevents session re-trigger on refresh
-    window.history.replaceState({}, document.title, "/index.html");
-
     const modal = document.getElementById("resetPasswordModal");
-    if (modal) modal.style.display = "flex";
+
+    if (modal) {
+        modal.style.display = "flex";
+    }
 
     const form = document.getElementById("resetForm");
-    const passwordInput = document.getElementById("newPassword");
-    const confirmInput = document.getElementById("confirmPassword");
-    const messageBox = document.getElementById("message");
 
-    if (!form.dataset.bound) {
-        form.dataset.bound = "true";
+    if (!form || form.dataset.bound) return;
 
-        form.addEventListener("submit", async (e) => {
-            e.preventDefault();
+    form.dataset.bound = "true";
 
-            const newPassword = passwordInput.value;
-            const confirmPassword = confirmInput.value;
+    form.addEventListener("submit", async (e) => {
+        e.preventDefault();
 
-            if (newPassword !== confirmPassword) {
-                messageBox.textContent = "Passwords do not match.";
-                return;
-            }
+        const newPassword = document.getElementById("newPassword").value;
+        const confirmPassword = document.getElementById("confirmPassword").value;
+        const messageBox = document.getElementById("message");
 
-            try {
-                const { updatePassword } = await import("./auth.js");
+        if (newPassword !== confirmPassword) {
+            messageBox.textContent = "Passwords do not match.";
+            return;
+        }
 
-                const result = await updatePassword(newPassword);
-
-                if (result) {
-                    await supabase.auth.signOut({ scope: "global" });
-
-                    alert("Password updated successfully ✔");
-
-                    window.location.href = "/index.html";
-                }
-            } catch (err) {
-                console.error(err);
-                messageBox.textContent = "Something went wrong.";
-            }
+        const { error } = await supabase.auth.updateUser({
+            password: newPassword
         });
-    }
+
+        if (error) {
+            messageBox.textContent = error.message;
+            return;
+        }
+
+        alert("Password updated successfully!");
+
+        await supabase.auth.signOut();
+
+        window.location.href = "index.html";
+    });
+
+    window.history.replaceState({}, document.title, window.location.pathname);
 }
 
 document.addEventListener("DOMContentLoaded", handleRecovery);
-const modal = document.getElementById("resetPasswordModal");
-if (modal) modal.style.display = "flex";
