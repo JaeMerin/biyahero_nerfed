@@ -256,7 +256,7 @@ supabase.auth.onAuthStateChange((event, session) => {
     const modal = document.getElementById("resetPasswordModal");
     if (modal) modal.style.display = "flex";
 
-    const form = document.getElementById("resetForm");
+    const form = document.getElementById("resetPasswordModal");
     if (!form || form.dataset.bound) return;
     form.dataset.bound = "true";
 
