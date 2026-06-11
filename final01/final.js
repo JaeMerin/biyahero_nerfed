@@ -213,8 +213,8 @@ if (forgotLink && forgotModal) {
         }
 
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: window.location.origin + "/index.html#resetPasswordModal"
-        });
+    redirectTo: window.location.href
+});
 
         if (error) {
             alert(error.message);
@@ -311,3 +311,5 @@ async function handleRecovery() {
 }
 
 document.addEventListener("DOMContentLoaded", handleRecovery);
+const modal = document.getElementById("resetPasswordModal");
+if (modal) modal.style.display = "flex";
