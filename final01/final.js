@@ -243,20 +243,41 @@ document.querySelectorAll(".toggle-password").forEach((toggle) => {
     });
 });
 
-// ============================================================
-// SECTION 11 — RECOVERY FLOW (FIXED — CORE BUG FIX HERE)
-// ============================================================
-// ============================================================
-// SECTION 11 — RECOVERY FLOW
+function showResetModal() {
+    const modal = document.getElementById("resetPasswordModal");
+    
+    console.log("showResetModal called, modal found:", modal); // 👈 add this
+    
+    if (modal) modal.style.display = "flex";
+    // ...
+}// ============================================================
+// SECTION 11 — RECOVERY FLOW (FIXED)
 // ============================================================
 
+// 1. Check URL hash immediately on page load
+const hashParams = new URLSearchParams(window.location.hash.replace('#', '?'));
+const accessToken = hashParams.get('access_token');
+const tokenType   = hashParams.get('type');
+
+if (accessToken && tokenType === 'recovery') {
+    // Show the modal right away before waiting for the auth event
+    document.addEventListener("DOMContentLoaded", () => {
+        const modal = document.getElementById("resetPasswordModal");
+        if (modal) modal.style.display = "flex";
+    });
+}
+
+// 2. Auth state listener as a fallback
 supabase.auth.onAuthStateChange((event, session) => {
     if (event !== "PASSWORD_RECOVERY") return;
 
     const modal = document.getElementById("resetPasswordModal");
     if (modal) modal.style.display = "flex";
+});
 
-    const form = document.getElementById("resetPasswordModal");
+// 3. Bind the form submit — attach to the FORM, not the modal wrapper
+document.addEventListener("DOMContentLoaded", () => {
+    const form = document.getElementById("resetForm"); // ✅ correct ID
     if (!form || form.dataset.bound) return;
     form.dataset.bound = "true";
 
@@ -268,6 +289,7 @@ supabase.auth.onAuthStateChange((event, session) => {
         const messageBox      = document.getElementById("message");
 
         if (newPassword !== confirmPassword) {
+            messageBox.style.color = "red";
             messageBox.textContent = "Passwords do not match.";
             return;
         }
@@ -275,6 +297,7 @@ supabase.auth.onAuthStateChange((event, session) => {
         const { error } = await supabase.auth.updateUser({ password: newPassword });
 
         if (error) {
+            messageBox.style.color = "red";
             messageBox.textContent = error.message;
             return;
         }
