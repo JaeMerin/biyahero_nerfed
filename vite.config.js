@@ -6,6 +6,7 @@ export default defineConfig({
     port: 5500,
     host: true
   }
+  
 })
 
 // export default defineConfig({
