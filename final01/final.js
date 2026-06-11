@@ -213,7 +213,7 @@ if (forgotLink && forgotModal) {
         }
 
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: `${window.location.origin}/index.html?action=reset-password`
+            redirectTo: "https://biyaheroes.netlify.app/reset-password.html"
         });
 
         if (error) {
