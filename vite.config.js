@@ -1,20 +1,21 @@
-import { defineConfig } from 'vite'
+  import { defineConfig } from 'vite'
+
 
 export default defineConfig({
-  root: 'final01',
+ // 1. Tell Vite your source files live inside final01
+ root: 'final01',
+  build: {
+   // 2. Tell Vite to jump OUT of final01 and put the finished build in the root
+   outDir: '../dist',
+   emptyOutDir: true,
+   minify: 'esbuild',
+ },
   server: {
-    port: 5500,
-    host: true
-  }
-  
+   port: 5500,
+   host: true
+ },
+  esbuild: {
+   drop: ['console', 'debugger'],
+ }
 })
 
-// export default defineConfig({
-//   build: {
-//     minify: 'esbuild',
-//   },
-//   esbuild: {
-//     // This drops all console.log calls during the production build
-//     drop: ['console', 'debugger'], 
-//   }
-// })
