@@ -212,11 +212,9 @@ if (forgotLink && forgotModal) {
             return;
         }
 
-        window.addEventListener("load", () => {
-    if (window.location.hash === "#resetPasswordModal") {
-        openResetPasswordModal();
-    }
-});
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: window.location.origin + "/index.html#resetPasswordModal"
+        });
 
         if (error) {
             alert(error.message);
