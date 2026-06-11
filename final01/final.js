@@ -5,6 +5,11 @@ import supabase from "./auth.js";
 // ============================================================
 
 // DEBUG — remove after fixing
+document.addEventListener("DOMContentLoaded", () => {
+    console.log("FULL URL:", window.location.href);
+    console.log("HASH:", window.location.hash);
+    console.log("SEARCH:", window.location.search);
+});
 console.log("FULL URL:", window.location.href);
 console.log("SEARCH:", window.location.search);
 console.log("HASH:", window.location.hash);
@@ -257,75 +262,46 @@ function showResetModal() {
     console.log("showResetModal called, modal found:", modal); // 👈 add this
     
     if (modal) modal.style.display = "flex";
-    // ...
-}// ============================================================
-// ============================================================
-// SECTION 11 — RECOVERY FLOW (PKCE-COMPATIBLE)
-// ============================================================
+    
+}
 
-document.addEventListener("DOMContentLoaded", async () => {
+supabase.auth.onAuthStateChange((event, session) => {
+    if (event !== "PASSWORD_RECOVERY") return;
 
-    // 1. Check for ?code= in the URL (Supabase PKCE recovery link)
-    const urlParams = new URLSearchParams(window.location.search);
-    const code = urlParams.get("code");
+    const modal = document.getElementById("resetPasswordModal");
 
-    if (code) {
-        // Exchange the code for a real session
-        const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-
-        if (error) {
-            console.error("Session exchange failed:", error.message);
-            alert("Reset link is invalid or expired. Please request a new one.");
-            return;
-        }
-
-        // Clean the URL so refreshing doesn't re-trigger this
-        window.history.replaceState({}, document.title, window.location.pathname);
-
-        // Show the reset modal
-        const modal = document.getElementById("resetPasswordModal");
-        if (modal) modal.style.display = "flex";
+    if (modal) {
+        modal.style.display = "flex";
     }
 
-    // 2. Bind the reset form
     const form = document.getElementById("resetForm");
+
     if (!form || form.dataset.bound) return;
     form.dataset.bound = "true";
 
     form.addEventListener("submit", async (e) => {
         e.preventDefault();
 
-        const newPassword     = document.getElementById("newPassword").value;
+        const newPassword = document.getElementById("newPassword").value;
         const confirmPassword = document.getElementById("confirmPassword").value;
-        const messageBox      = document.getElementById("message");
+        const messageBox = document.getElementById("message");
 
         if (newPassword !== confirmPassword) {
-            messageBox.style.color = "red";
             messageBox.textContent = "Passwords do not match.";
             return;
         }
 
-        const { error } = await supabase.auth.updateUser({ password: newPassword });
+        const { error } = await supabase.auth.updateUser({
+            password: newPassword
+        });
 
         if (error) {
-            messageBox.style.color = "red";
             messageBox.textContent = error.message;
             return;
         }
 
-        messageBox.style.color = "green";
-        messageBox.textContent = "Password updated!";
-
-        setTimeout(async () => {
-            await supabase.auth.signOut();
-            window.location.href = "/index.html";
-        }, 1500);
+        alert("Password updated successfully!");
+        await supabase.auth.signOut();
+        window.location.href = "/index.html";
     });
-});
-
-// 3. Fallback — onAuthStateChange still handles edge cases
-supabase.auth.onAuthStateChange((event, session) => {
-    if (event !== "PASSWORD_RECOVERY") return;
-    const modal = document.getElementById("resetPasswordModal");
-    if (modal) modal.style.display = "flex";
 });

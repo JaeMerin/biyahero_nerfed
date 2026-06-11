@@ -90,6 +90,44 @@ L.circle(ICCT_POSITION, {
     radius:      MAX_DISTANCE,
 }).addTo(map);
 
+// ─── NEW CODE: DYNAMIC MAP LEGEND ───────────────────────────
+const legend = L.control({ position: 'bottomright' });
+
+legend.onAdd = function (map) {
+    const div = L.DomUtil.create('div', 'map-legend');
+    
+    div.innerHTML = `
+        <h4>Biyahero Legend</h4>
+        <div class="legend-item">
+            <span class="legend-line line-jeepney"></span>
+            <span>Jeepney Route</span>
+        </div>
+        <div class="legend-item">
+            <span class="legend-line line-walk-start"></span>
+            <span>Walk to Ride</span>
+        </div>
+        <div class="legend-item">
+            <span class="legend-line line-transfer"></span>
+            <span>Transfer Point Walk</span>
+        </div>
+        <div class="legend-item">
+            <span class="legend-line line-walk-end"></span>
+            <span>Walk to Campus Gate</span>
+        </div>
+        <div class="legend-item">
+            <span class="legend-line line-traveled"></span>
+            <span>Passed Route (Nav)</span>
+        </div>
+    `;
+    
+    // Prevent clicking or scrolling on the legend box from messing with map movements
+    L.DomEvent.disableClickPropagation(div);
+    L.DomEvent.disableScrollPropagation(div);
+    
+    return div;
+};
+
+legend.addTo(map);
 
 // ============================================================
 // MAP CLEANUP
