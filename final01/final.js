@@ -213,8 +213,8 @@ if (forgotLink && forgotModal) {
         }
 
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-   redirectTo: "https://biyaheroes.netlify.app"
-});
+            redirectTo: `${window.location.origin}/index.html`
+        });
 
         if (error) {
             alert(error.message);
@@ -246,56 +246,33 @@ document.querySelectorAll(".toggle-password").forEach((toggle) => {
 // ============================================================
 // SECTION 11 — RECOVERY FLOW (FIXED — CORE BUG FIX HERE)
 // ============================================================
+// ============================================================
+// SECTION 11 — RECOVERY FLOW
+// ============================================================
 
-async function handleRecovery() {
-    const hash = window.location.hash;
-
-    if (!hash.includes("access_token")) return;
-
-    const hashParams = new URLSearchParams(hash.substring(1));
-
-    const access_token = hashParams.get("access_token");
-    const refresh_token = hashParams.get("refresh_token");
-
-    if (!access_token || !refresh_token) return;
-
-    const { error } = await supabase.auth.setSession({
-        access_token,
-        refresh_token
-    });
-
-    if (error) {
-        console.error(error.message);
-        return;
-    }
+supabase.auth.onAuthStateChange((event, session) => {
+    if (event !== "PASSWORD_RECOVERY") return;
 
     const modal = document.getElementById("resetPasswordModal");
-
-    if (modal) {
-        modal.style.display = "flex";
-    }
+    if (modal) modal.style.display = "flex";
 
     const form = document.getElementById("resetForm");
-
     if (!form || form.dataset.bound) return;
-
     form.dataset.bound = "true";
 
     form.addEventListener("submit", async (e) => {
         e.preventDefault();
 
-        const newPassword = document.getElementById("newPassword").value;
+        const newPassword     = document.getElementById("newPassword").value;
         const confirmPassword = document.getElementById("confirmPassword").value;
-        const messageBox = document.getElementById("message");
+        const messageBox      = document.getElementById("message");
 
         if (newPassword !== confirmPassword) {
             messageBox.textContent = "Passwords do not match.";
             return;
         }
 
-        const { error } = await supabase.auth.updateUser({
-            password: newPassword
-        });
+        const { error } = await supabase.auth.updateUser({ password: newPassword });
 
         if (error) {
             messageBox.textContent = error.message;
@@ -303,13 +280,7 @@ async function handleRecovery() {
         }
 
         alert("Password updated successfully!");
-
         await supabase.auth.signOut();
-
-        window.location.href = "index.html";
+        window.location.href = "/index.html";
     });
-
-    window.history.replaceState({}, document.title, window.location.pathname);
-}
-
-document.addEventListener("DOMContentLoaded", handleRecovery);
+});
