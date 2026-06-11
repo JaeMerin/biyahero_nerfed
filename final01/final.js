@@ -4,6 +4,14 @@ import supabase from "./auth.js";
 // SECTION 1 — FARE MATRIX POPUP
 // ============================================================
 
+// DEBUG — remove after fixing
+console.log("FULL URL:", window.location.href);
+console.log("SEARCH:", window.location.search);
+console.log("HASH:", window.location.hash);
+
+const urlParams = new URLSearchParams(window.location.search);
+console.log("code param:", urlParams.get("code"));
+
 document.addEventListener("DOMContentLoaded", function () {
     const btn     = document.getElementById("viewFareBtn");
     const popup   = document.getElementById("farePopup");
