@@ -90,7 +90,7 @@ L.circle(ICCT_POSITION, {
     radius:      MAX_DISTANCE,
 }).addTo(map);
 
-// ─── NEW CODE: DYNAMIC MAP LEGEND ───────────────────────────
+// ============= MAP LEGEND ===============
 const legend = L.control({ position: 'bottomright' });
 
 legend.onAdd = function (map) {
@@ -128,6 +128,24 @@ legend.onAdd = function (map) {
 };
 
 legend.addTo(map);
+
+// ─── NEW CODE: LEAFLET CONTROL BUTTON FOR TOGGLE ────────────────
+const legendToggle = L.control({ position: 'bottomright' });
+
+legendToggle.onAdd = function (map) {
+    const button = L.DomUtil.create('button', 'legend-toggle-btn');
+    button.id = 'toggleLegendBtn';
+    button.textContent = 'Legend';
+
+    L.DomEvent.on(button, 'click', function (e) {
+        L.DomEvent.stopPropagation(e); // Stop map from clicking through
+        window.toggleMapLegend();
+    });
+
+    return button;
+};
+
+legendToggle.addTo(map);
 
 // ============================================================
 // MAP CLEANUP

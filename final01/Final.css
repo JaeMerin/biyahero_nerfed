@@ -533,6 +533,86 @@ tbody tr:last-child td:last-child  { border-bottom-right-radius: 12px; }
     100% { transform: rotate(360deg); }
 }
 
+        /* ========== BIYAHERO MAP LEGEND ========== */
+.map-legend {
+    background: rgba(255, 255, 255, 0.95);
+    padding: 12px 16px;
+    font-family: sans-serif;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #333;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    max-width: 220px;
+}
+
+.map-legend h4 {
+    margin: 0 0 10px 0;
+    font-size: 14px;
+    font-weight: bold;
+    color: #0066ff;
+    border-bottom: 2px solid #f0f0f0;
+    padding-bottom: 4px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.legend-item:last-child {
+    margin-bottom: 0;
+}
+
+.legend-line {
+    display: inline-block;
+    width: 35px;
+    height: 0;
+    margin-right: 12px;
+}
+
+
+/* Matching your exact map.js polyline properties */
+.line-jeepney {
+    border-top: 5px solid #0066ff;
+}
+
+.line-walk-start {
+    border-top: 4px dashed green;
+}
+
+.line-walk-end {
+    border-top: 4px dashed orange;
+}
+
+.line-transfer {
+    border-top: 4px dashed #ecc92b; /* Slightly darker yellow for text readability */
+}
+
+.line-traveled {
+    border-top: 4px solid #aaaaaa;
+}
+
+.map-legend.hidden {
+    display: none !important;
+}
+
+/* Optional: Style for a floating map button if you want it on the map */
+.legend-toggle-btn {
+    background: white;
+    padding: 6px 10px;
+    font-weight: bold;
+    cursor: pointer;
+    border-radius: 4px;
+    border: 2px solid rgba(0,0,0,0.2);
+    box-shadow: 0 1px 5px rgba(0,0,0,0.45);
+}
+.legend-toggle-btn:hover {
+    background: #f4f4f4;
+}
+
 
 /* ============================================================
    FARE MATRIX POPUP
@@ -1983,83 +2063,3 @@ body.dark-mode #resetPasswordModal button[type="submit"]:hover {
         .rd-totals__regular    { font-weight: bold; color: #333; }
         .rd-totals__discounted { font-weight: bold; color: #5cb85c; }
 
-        /* ========== BIYAHERO MAP LEGEND ========== */
-.map-legend {
-    background: rgba(255, 255, 255, 0.95);
-    padding: 12px 16px;
-    font-family: sans-serif;
-    font-size: 13px;
-    line-height: 1.5;
-    color: #333;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-    border-radius: 8px;
-    border: 1px solid #ccc;
-    max-width: 220px;
-}
-
-.map-legend h4 {
-    margin: 0 0 10px 0;
-    font-size: 14px;
-    font-weight: bold;
-    color: #0066ff;
-    border-bottom: 2px solid #f0f0f0;
-    padding-bottom: 4px;
-}
-
-.legend-item {
-    display: flex;
-    align-items: center;
-    margin-bottom: 8px;
-}
-
-.legend-item:last-child {
-    margin-bottom: 0;
-}
-
-.legend-line {
-    display: inline-block;
-    width: 35px;
-    height: 0;
-    margin-right: 12px;
-}
-
-
-/* Matching your exact map.js polyline properties */
-.line-jeepney {
-    border-top: 5px solid #0066ff;
-}
-
-.line-walk-start {
-    border-top: 4px dashed green;
-}
-
-.line-walk-end {
-    border-top: 4px dashed orange;
-}
-
-.line-transfer {
-    border-top: 4px dashed #ecc92b; /* Slightly darker yellow for text readability */
-}
-
-.line-traveled {
-    border-top: 4px solid #aaaaaa;
-}
-
-/* Add this to your CSS file */
-.map-legend.hidden {
-    display: none !important;
-}
-
-/* Optional: Style for a floating map button if you want it on the map */
-.legend-toggle-btn {
-    background: white;
-    padding: 6px 10px;
-    font-weight: bold;
-    cursor: pointer;
-    border-radius: 4px;
-    border: 2px solid rgba(0,0,0,0.2);
-    box-shadow: 0 1px 5px rgba(0,0,0,0.45);
-}
-.legend-toggle-btn:hover {
-    background: #f4f4f4;
-}
