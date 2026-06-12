@@ -242,66 +242,68 @@ if (forgotLink && forgotModal) {
 // ============================================================
 // SECTION 10 — PASSWORD TOGGLE (RESET MODAL)
 // ============================================================
+// ============================================================
+// SECTION 10 — PASSWORD RESET MODAL (FIXED)
+// ============================================================
 
 document.querySelectorAll(".toggle-password").forEach((toggle) => {
     toggle.addEventListener("click", () => {
-        const input  = toggle.parentElement.querySelector("input");
+        const input = toggle.parentElement.querySelector("input");
         if (!input) return;
-
         const isHidden = input.type === "password";
         input.type = isHidden ? "text" : "password";
-
         toggle.classList.toggle("bx-hide", !isHidden);
         toggle.classList.toggle("bx-show", isHidden);
     });
 });
 
-function showResetModal() {
-    const modal = document.getElementById("resetPasswordModal");
-    
-    console.log("showResetModal called, modal found:", modal); // 👈 add this
-    
-    if (modal) modal.style.display = "flex";
-    
-}
+// ✅ FIXED: wrap everything in DOMContentLoaded so the modal exists first
+document.addEventListener("DOMContentLoaded", () => {
 
-supabase.auth.onAuthStateChange((event, session) => {
-    if (event !== "PASSWORD_RECOVERY") return;
-
-    const modal = document.getElementById("resetPasswordModal");
-
-    if (modal) {
-        modal.style.display = "flex";
-    }
-
-    const form = document.getElementById("resetForm");
-
-    if (!form || form.dataset.bound) return;
-    form.dataset.bound = "true";
-
-    form.addEventListener("submit", async (e) => {
-        e.preventDefault();
-
-        const newPassword = document.getElementById("newPassword").value;
-        const confirmPassword = document.getElementById("confirmPassword").value;
-        const messageBox = document.getElementById("message");
-
-        if (newPassword !== confirmPassword) {
-            messageBox.textContent = "Passwords do not match.";
-            return;
+    // ✅ Also check the session immediately on load —
+    // onAuthStateChange sometimes fires BEFORE this listener is registered
+    supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user && window.location.hash.includes("access_token")) {
+            openResetModal();
         }
-
-        const { error } = await supabase.auth.updateUser({
-            password: newPassword
-        });
-
-        if (error) {
-            messageBox.textContent = error.message;
-            return;
-        }
-
-        alert("Password updated successfully!");
-        await supabase.auth.signOut();
-        window.location.href = "/index.html";
     });
+
+    supabase.auth.onAuthStateChange((event, session) => {
+        if (event !== "PASSWORD_RECOVERY") return;
+        openResetModal();
+    });
+
+    function openResetModal() {
+        const modal = document.getElementById("resetPasswordModal");
+        if (!modal) return;
+        modal.style.display = "flex";
+
+        const form = document.getElementById("resetForm");
+        if (!form || form.dataset.bound) return;
+        form.dataset.bound = "true";
+
+        form.addEventListener("submit", async (e) => {
+            e.preventDefault();
+
+            const newPassword     = document.getElementById("newPassword").value;
+            const confirmPassword = document.getElementById("confirmPassword").value;
+            const messageBox      = document.getElementById("message");
+
+            if (newPassword !== confirmPassword) {
+                messageBox.textContent = "Passwords do not match.";
+                return;
+            }
+
+            const { error } = await supabase.auth.updateUser({ password: newPassword });
+
+            if (error) {
+                messageBox.textContent = error.message;
+                return;
+            }
+
+            alert("Password updated successfully!");
+            await supabase.auth.signOut();
+            window.location.href = "/index.html";
+        });
+    }
 });
