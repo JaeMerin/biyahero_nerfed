@@ -5,14 +5,19 @@ import supabase from "./auth.js";
 // ============================================================
 
 // DEBUG — remove after fixing
-document.addEventListener("DOMContentLoaded", () => {
-    console.log("FULL URL:", window.location.href);
-    console.log("HASH:", window.location.hash);
-    console.log("SEARCH:", window.location.search);
+// DEBUG — paste at top, remove after fix
+window.addEventListener("load", async () => {
+    console.log("--- RESET DEBUG ---");
+    console.log("Full URL:", window.location.href);
+    console.log("Hash:", window.location.hash);
+
+    const { data: { session }, error } = await supabase.auth.getSession();
+    console.log("Session:", session);
+    console.log("Session error:", error);
+
+    const modal = document.getElementById("resetPasswordModal");
+    console.log("Modal found:", modal);
 });
-console.log("FULL URL:", window.location.href);
-console.log("SEARCH:", window.location.search);
-console.log("HASH:", window.location.hash);
 
 const urlParams = new URLSearchParams(window.location.search);
 console.log("code param:", urlParams.get("code"));
@@ -226,7 +231,7 @@ if (forgotLink && forgotModal) {
         }
 
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: `${window.location.origin}/index.html`
+            redirectTo: "https://biyaheroes.netlify.app/index.html"
         });
 
         if (error) {
@@ -238,44 +243,15 @@ if (forgotLink && forgotModal) {
         forgotModal.classList.remove("active");
     });
 }
-
-// ============================================================
-// SECTION 10 — PASSWORD TOGGLE (RESET MODAL)
-// ============================================================
-// ============================================================
-// SECTION 10 — PASSWORD RESET MODAL (FIXED)
-// ============================================================
-
-document.querySelectorAll(".toggle-password").forEach((toggle) => {
-    toggle.addEventListener("click", () => {
-        const input = toggle.parentElement.querySelector("input");
-        if (!input) return;
-        const isHidden = input.type === "password";
-        input.type = isHidden ? "text" : "password";
-        toggle.classList.toggle("bx-hide", !isHidden);
-        toggle.classList.toggle("bx-show", isHidden);
-    });
-});
-
-// ✅ FIXED: wrap everything in DOMContentLoaded so the modal exists first
 document.addEventListener("DOMContentLoaded", () => {
 
-    // ✅ Also check the session immediately on load —
-    // onAuthStateChange sometimes fires BEFORE this listener is registered
-    supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session?.user && window.location.hash.includes("access_token")) {
-            openResetModal();
-        }
-    });
-
-    supabase.auth.onAuthStateChange((event, session) => {
-        if (event !== "PASSWORD_RECOVERY") return;
-        openResetModal();
-    });
-
     function openResetModal() {
+        console.log("openResetModal called"); // debug
         const modal = document.getElementById("resetPasswordModal");
-        if (!modal) return;
+        if (!modal) {
+            console.error("Modal not found in DOM!");
+            return;
+        }
         modal.style.display = "flex";
 
         const form = document.getElementById("resetForm");
@@ -284,7 +260,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
         form.addEventListener("submit", async (e) => {
             e.preventDefault();
-
             const newPassword     = document.getElementById("newPassword").value;
             const confirmPassword = document.getElementById("confirmPassword").value;
             const messageBox      = document.getElementById("message");
@@ -306,4 +281,34 @@ document.addEventListener("DOMContentLoaded", () => {
             window.location.href = "/index.html";
         });
     }
+
+    // METHOD 1 — catch the event if it fires after listener is ready
+    supabase.auth.onAuthStateChange((event, session) => {
+        console.log("Auth event:", event); // debug
+        if (event === "PASSWORD_RECOVERY") {
+            openResetModal();
+        }
+    });
+
+    // METHOD 2 — catch it if the event already fired before listener registered
+    supabase.auth.getSession().then(({ data: { session } }) => {
+        console.log("getSession result:", session); // debug
+        const hash = window.location.hash;
+        const isRecovery =
+            hash.includes("type=recovery") ||
+            hash.includes("access_token");
+
+        if (session && isRecovery) {
+            openResetModal();
+        }
+    });
+
+    // METHOD 3 — nuclear fallback, check hash directly
+    const hash = window.location.hash;
+    if (hash.includes("type=recovery") || hash.includes("access_token")) {
+        console.log("Hash recovery detected, opening modal"); // debug
+        // slight delay to let Supabase process the token first
+        setTimeout(openResetModal, 500);
+    }
+
 });

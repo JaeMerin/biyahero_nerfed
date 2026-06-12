@@ -2023,6 +2023,7 @@ body.dark-mode #resetPasswordModal button[type="submit"]:hover {
     margin-right: 12px;
 }
 
+
 /* Matching your exact map.js polyline properties */
 .line-jeepney {
     border-top: 5px solid #0066ff;
@@ -2042,4 +2043,23 @@ body.dark-mode #resetPasswordModal button[type="submit"]:hover {
 
 .line-traveled {
     border-top: 4px solid #aaaaaa;
+}
+
+/* Add this to your CSS file */
+.map-legend.hidden {
+    display: none !important;
+}
+
+/* Optional: Style for a floating map button if you want it on the map */
+.legend-toggle-btn {
+    background: white;
+    padding: 6px 10px;
+    font-weight: bold;
+    cursor: pointer;
+    border-radius: 4px;
+    border: 2px solid rgba(0,0,0,0.2);
+    box-shadow: 0 1px 5px rgba(0,0,0,0.45);
+}
+.legend-toggle-btn:hover {
+    background: #f4f4f4;
 }
