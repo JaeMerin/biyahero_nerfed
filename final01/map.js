@@ -20,7 +20,7 @@ const END_STOP_RADIUS   = 1500;
 const MOVE_THRESHOLD    = 50;    // meters — minimum movement to trigger recalculate
 const PASSED_THRESHOLD  = 80;    // meters — how close to a stop before it's "passed"
 
- 
+
 // Graph cache: rebuild after 6 hours
 const GRAPH_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 const GRAPH_CACHE_KEY    = "jeepney_graph_v2";
@@ -49,11 +49,14 @@ let lastRun               = 0;
 let lastCoords            = null;
 let selectedJeepneyType   = "traditional";
 let globalActivePathData  = null;
-let lastAnnouncedStop = null;
+let lastAnnouncedStop     = null;
 let lastTransferAnnouncement = null;
-let followUser = false;
-let arrivalAnnounced = false;
-
+let followUser            = false;
+let arrivalAnnounced      = false;
+let _lastRedrawLength     = -1;
+const LOCKED_TRACKING_INTERVAL_MS = 3000;
+let _lastLockedTick       = 0;
+let _toastTimer           = null;
 
 // Route lock state
 let routeLocked           = false;
@@ -96,7 +99,7 @@ const legend = L.control({ position: 'bottomright' });
 
 legend.onAdd = function (map) {
     const div = L.DomUtil.create('div', 'map-legend');
-    
+
     div.innerHTML = `
         <h4>Biyahero Legend</h4>
         <div class="legend-item">
@@ -120,17 +123,15 @@ legend.onAdd = function (map) {
             <span>Passed Route (Nav)</span>
         </div>
     `;
-    
-    // Prevent clicking or scrolling on the legend box from messing with map movements
+
     L.DomEvent.disableClickPropagation(div);
     L.DomEvent.disableScrollPropagation(div);
-    
+
     return div;
 };
 
 legend.addTo(map);
 
-// ─── NEW CODE: LEAFLET CONTROL BUTTON FOR TOGGLE ────────────────
 window.toggleMapLegend = function () {
     const legendEl = document.querySelector(".map-legend");
     if (legendEl) {
@@ -146,7 +147,7 @@ legendToggle.onAdd = function (map) {
     button.textContent = 'Legend';
 
     L.DomEvent.on(button, 'click', function (e) {
-        L.DomEvent.stopPropagation(e); // Stop map from clicking through
+        L.DomEvent.stopPropagation(e);
         window.toggleMapLegend();
     });
 
@@ -154,6 +155,7 @@ legendToggle.onAdd = function (map) {
 };
 
 legendToggle.addTo(map);
+
 
 // ============================================================
 // MAP CLEANUP
@@ -220,124 +222,148 @@ async function loadStops() {
 }
 
 
-
-
 // ============================================================
 // GRAPH BUILDER
 // ============================================================
 async function buildGraph() {
     if (graph) return graph;
- 
+
     // ── Try loading from cache ──────────────────────────────
     try {
         const cached = localStorage.getItem(GRAPH_CACHE_KEY);
         if (cached) {
             const { timestamp, data } = JSON.parse(cached);
             if (Date.now() - timestamp < GRAPH_CACHE_TTL_MS) {
-                // Restore derived state from cache
-                graph        = data.graph;
-                stopRoutes   = data.stopRoutes;  // plain objects (Sets serialized as arrays)
+                graph          = data.graph;
+                stopRoutes     = data.stopRoutes;
                 routeEndpoints = data.routeEndpoints;
-                routeNames   = data.routeNames || {};
- 
-                // Re-hydrate Sets
+                routeNames     = data.routeNames || {};
+
                 for (const id in stopRoutes) stopRoutes[id] = new Set(stopRoutes[id]);
- 
-                // Stops may not be loaded yet if we hit the cache before loadStops()
+
                 if (!stops.length) await loadStops();
                 if (Object.keys(routeNames).length === 0) await loadRouteNames();
- 
+
                 return graph;
             }
         }
     } catch {
-        // Corrupt cache — rebuild
         localStorage.removeItem(GRAPH_CACHE_KEY);
     }
- 
+
     // ── Build fresh ─────────────────────────────────────────
     await loadStops();
     await loadRouteNames();
- 
+
     const { data: routeStops, error } = await supabase
         .from("route_stops")
         .select("*")
         .order("route_id",   { ascending: true })
         .order("stop_order", { ascending: true });
- 
+
     if (error) return {};
- 
+
     const g = {};
     stopRoutes = {};
- 
+
     for (const rs of routeStops) {
         const stopId = String(rs.stop_id);
         if (!stopRoutes[stopId]) stopRoutes[stopId] = new Set();
         stopRoutes[stopId].add(String(rs.route_id));
     }
- 
+
     const grouped = {};
     for (const rs of routeStops) {
         const routeId = String(rs.route_id);
         if (!grouped[routeId]) grouped[routeId] = [];
         grouped[routeId].push(rs);
     }
- 
+
     routeEndpoints = {};
     for (const routeId in grouped) {
         const sorted = grouped[routeId].sort((a, b) => a.stop_order - b.stop_order);
         const last = sorted[sorted.length - 1];
         if (last) routeEndpoints[routeId] = String(last.stop_id);
     }
- 
+
     const addNode = id => { id = String(id); if (!g[id]) g[id] = []; };
     const addEdge = (from, to, weight, type, routeId = null) => {
         from = String(from); to = String(to);
         addNode(from); addNode(to);
         g[from].push({ to, weight, type, routeId });
     };
- 
+
     for (const routeId in grouped) {
         const list = grouped[routeId].sort((a, b) => a.stop_order - b.stop_order);
         for (let i = 0; i < list.length - 1; i++) {
             const fromStop = stopById[String(list[i].stop_id)];
             const toStop   = stopById[String(list[i + 1].stop_id)];
             if (!fromStop || !toStop) continue;
- 
+
             const distance   = map.distance([fromStop.lat, fromStop.lng], [toStop.lat, toStop.lng]);
             const travelTime = distance / JEEPNEY_SPEED;
             addEdge(list[i].stop_id,     list[i + 1].stop_id, travelTime, "jeepney", routeId);
             addEdge(list[i + 1].stop_id, list[i].stop_id,     travelTime, "jeepney", routeId);
         }
     }
- 
-    for (let i = 0; i < stops.length; i++) {
-        const a = stops[i];
-        for (let j = i + 1; j < stops.length; j++) {
-            const b = stops[j];
-            if (Math.abs(a.lat - b.lat) > 0.0045 || Math.abs(a.lng - b.lng) > 0.0045) continue;
- 
-            const routesA = stopRoutes[String(a.id)] || new Set();
-            const routesB = stopRoutes[String(b.id)] || new Set();
-            if ([...routesA].some(r => routesB.has(r))) continue;
- 
-            const distance = map.distance([a.lat, a.lng], [b.lat, b.lng]);
-            if (distance <= TRANSFER_LIMIT) {
-                const transferWeight = TRANSFER_PENALTY + distance / WALK_SPEED;
-                addEdge(a.id, b.id, transferWeight, "transfer");
-                addEdge(b.id, a.id, transferWeight, "transfer");
+
+    // ── FIX #3: O(n) grid-bucket transfer detection (was O(n²)) ──────────
+    const BUCKET_SIZE = 0.005; // ~500 m in degrees
+    const bucket      = val => Math.floor(val / BUCKET_SIZE);
+    const bucketMap   = {};
+
+    for (const stop of stops) {
+        const key = `${bucket(stop.lat)},${bucket(stop.lng)}`;
+        if (!bucketMap[key]) bucketMap[key] = [];
+        bucketMap[key].push(stop);
+    }
+
+    const checked = new Set();
+
+    for (const stop of stops) {
+        const bLat = bucket(stop.lat);
+        const bLng = bucket(stop.lng);
+
+        // Compare only same + adjacent buckets (3×3 grid)
+        for (let dLat = -1; dLat <= 1; dLat++) {
+            for (let dLng = -1; dLng <= 1; dLng++) {
+                const key       = `${bLat + dLat},${bLng + dLng}`;
+                const neighbors = bucketMap[key] || [];
+
+                for (const other of neighbors) {
+                    if (other.id === stop.id) continue;
+
+                    const pairKey = stop.id < other.id
+                        ? `${stop.id}-${other.id}`
+                        : `${other.id}-${stop.id}`;
+                    if (checked.has(pairKey)) continue;
+                    checked.add(pairKey);
+
+                    const routesA = stopRoutes[String(stop.id)]  || new Set();
+                    const routesB = stopRoutes[String(other.id)] || new Set();
+                    if ([...routesA].some(r => routesB.has(r))) continue;
+
+                    const distance = map.distance(
+                        [stop.lat,  stop.lng],
+                        [other.lat, other.lng]
+                    );
+                    if (distance <= TRANSFER_LIMIT) {
+                        const w = TRANSFER_PENALTY + distance / WALK_SPEED;
+                        addEdge(stop.id,  other.id, w, "transfer");
+                        addEdge(other.id, stop.id,  w, "transfer");
+                    }
+                }
             }
         }
     }
- 
+
     graph = g;
- 
+
     // ── Persist to localStorage ─────────────────────────────
     try {
-        // Sets → arrays for JSON serialisation
         const stopRoutesSerializable = {};
         for (const id in stopRoutes) stopRoutesSerializable[id] = [...stopRoutes[id]];
- 
+
         localStorage.setItem(GRAPH_CACHE_KEY, JSON.stringify({
             timestamp: Date.now(),
             data: { graph, stopRoutes: stopRoutesSerializable, routeEndpoints, routeNames },
@@ -345,11 +371,10 @@ async function buildGraph() {
     } catch {
         // Storage quota exceeded — silently skip
     }
- 
+
     return graph;
 }
- 
- 
+
 
 // ============================================================
 // TRANSFER DETECTION
@@ -497,27 +522,30 @@ function updateUserMarker(lat, lng) {
         userMarker.setLatLng([lat, lng]);
     }
 
-    // Navigation mode
-        if (routeLocked && followUser) {
-
-        const point = map.project(
-            [lat, lng],
-            map.getZoom()
-        );
-
-        // User appears lower on screen
+    if (routeLocked && followUser) {
+        const point = map.project([lat, lng], map.getZoom());
         point.y -= 150;
-
-        map.panTo(
-            map.unproject(
-                point,
-                map.getZoom()
-            ),
-            {
-                animate: true
-            }
-        );
+        map.panTo(map.unproject(point, map.getZoom()), { animate: true });
     }
+}
+
+
+// ============================================================
+// TOAST + ANNOUNCE  (FIX #4)
+// ============================================================
+function showToast(message, durationMs = 4000) {
+    const toast = document.getElementById("announcementToast");
+    if (!toast) return;
+    toast.textContent    = message;
+    toast.style.display  = "block";
+    clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(() => { toast.style.display = "none"; }, durationMs);
+}
+
+function announce(text) {
+    showToast(text);
+    speechSynthesis.cancel();
+    speechSynthesis.speak(new SpeechSynthesisUtterance(text));
 }
 
 
@@ -584,21 +612,6 @@ function drawJeepneySegments(path, transfers) {
         jeepneyRouteLayers.push(layer);
     });
 }
-async function getRoadGeometry(from, to) {
-    const url =
-        `https://router.project-osrm.org/route/v1/driving/` +
-        `${from.lng},${from.lat};${to.lng},${to.lat}` +
-        `?overview=full&geometries=geojson`;
-
-    const res = await fetch(url);
-    const data = await res.json();
-
-    if (!data.routes?.length) return null;
-
-    return data.routes[0].geometry.coordinates.map(
-        c => [c[1], c[0]]
-    );
-}
 
 
 // ============================================================
@@ -611,17 +624,31 @@ function calculateTraditionalFare(distanceInMeters, isDiscounted = false) {
     const succeedingRate = isDiscounted ?  1.60 :  2.00;
 
     if (distanceKm <= baseKm) return baseFare;
-    return Math.round((baseFare + Math.ceil(distanceKm - baseKm) * succeedingRate) * 4) / 4;
+    return Math.round((baseFare + Math.ceil(distanceKm - baseKm) * succeedingRate) * 100) / 100;
 }
 
 function calculateModernFare(distanceInMeters, isDiscounted = false) {
     const distanceKm     = distanceInMeters / 1000;
     const baseKm         = 4;
     const baseFare       = isDiscounted ? 13.60 : 17.00;
-    const succeedingRate = isDiscounted ?  1.96 :  2.40;
-
+    const succeedingRate = isDiscounted ?  1.60 :  2.00; // ← fixed: was 2.40/1.96
+    
     if (distanceKm <= baseKm) return baseFare;
-    return Math.round((baseFare + Math.ceil(distanceKm - baseKm) * succeedingRate) * 4) / 4;
+    return Math.round((baseFare + Math.ceil(distanceKm - baseKm) * succeedingRate) * 100) / 100;
+}
+
+
+// ============================================================
+// ETA CALCULATOR  (FIX #5)
+// ============================================================
+function calcETAMinutes(displayPath) {
+    let totalSeconds = 0;
+    for (let i = 0; i < displayPath.length - 1; i++) {
+        const edge = (graph[displayPath[i]] || [])
+            .find(e => String(e.to) === String(displayPath[i + 1]));
+        if (edge) totalSeconds += edge.weight;
+    }
+    return Math.round(totalSeconds / 60);
 }
 
 
@@ -631,42 +658,30 @@ function calculateModernFare(distanceInMeters, isDiscounted = false) {
 window.lockRoute = function () {
     if (!globalActivePathData) return;
 
-    routeLocked = true;
-    followUser = true;
+    routeLocked      = true;
+    followUser       = true;
     arrivalAnnounced = false;
 
     lockedPathData = { ...globalActivePathData };
-    remainingPath = [...lockedPathData.path];
+    remainingPath  = [...lockedPathData.path];
 
-    // Immediately zoom to current location
     if (userMarker) {
-        map.setView(
-            userMarker.getLatLng(),
-            18,
-            {
-                animate: true
-            }
-        );
+        map.setView(userMarker.getLatLng(), 18, { animate: true });
     }
 
     updateLockUI(true);
-
-    setStatusMessage(
-        "Route locked. Navigation started.",
-        "success"
-    );
+    setStatusMessage("Route locked. Navigation started.", "success");
 };
 
 window.unlockRoute = function () {
-    routeLocked    = false;
-    lockedPathData = null;
-    remainingPath  = null;
-    followUser = false;
+    routeLocked      = false;
+    lockedPathData   = null;
+    remainingPath    = null;
+    followUser       = false;
     arrivalAnnounced = false;
-    lastAnnouncedStop = null;
+    lastAnnouncedStop        = null;
     lastTransferAnnouncement = null;
 
-    // Reset debounce so a fresh recalculation fires immediately on next GPS tick
     lastRun     = 0;
     lastUserPos = null;
     lastCoords  = null;
@@ -676,86 +691,137 @@ window.unlockRoute = function () {
 };
 
 function updateLockUI(locked) {
-    const lockBtn   = document.getElementById("lockRouteBtn");
-    const unlockBtn = document.getElementById("unlockRouteBtn");
-    const badge     = document.getElementById("routeLockBadge");
+    const lockBtn       = document.getElementById("lockRouteBtn");
+    const unlockBtn     = document.getElementById("unlockRouteBtn");
+    const badge         = document.getElementById("routeLockBadge");
+    const locationInput = document.getElementById("locationInput");
+    const useLocBtn     = document.getElementById("useLocationBtn"); // adjust to your button's actual ID
 
     if (lockBtn)   lockBtn.style.display   = locked ? "none"         : "inline-block";
     if (unlockBtn) unlockBtn.style.display = locked ? "inline-block" : "none";
     if (badge)     badge.style.display     = locked ? "inline-block" : "none";
+
+    // Disable search input while locked
+    if (locationInput) {
+        locationInput.disabled    = locked;
+        locationInput.placeholder = locked
+            ? "Unlock route to change location"
+            : "Search for a location...";
+        locationInput.style.opacity = locked ? "0.5" : "1";
+        locationInput.style.cursor  = locked ? "not-allowed" : "";
+    }
+
+    // Disable "Use Current Location" button while locked
+    if (useLocBtn) {
+        useLocBtn.disabled            = locked;
+        useLocBtn.style.opacity       = locked ? "0.5" : "1";
+        useLocBtn.style.cursor        = locked ? "not-allowed" : "";
+        useLocBtn.style.pointerEvents = locked ? "none" : "";
+    }
 }
 
-// Trim already-passed stops and redraw the route with a gray "traveled" portion
+
+// ============================================================
+// FIX #1 — redrawLockedRoute
+// Redraws traveled portion in gray and remaining portion in blue.
+// Guarded by _lastRedrawLength so it only runs when the path actually shrinks.
+// ============================================================
+function redrawLockedRoute() {
+    const currentLength = remainingPath.length;
+    if (currentLength === _lastRedrawLength) return; // nothing changed
+    _lastRedrawLength = currentLength;
+
+    // Clear all existing jeepney layers
+    jeepneyRouteLayers.forEach(layer => map.removeLayer(layer));
+    jeepneyRouteLayers = [];
+
+    const fullPath     = lockedPathData.path;
+    const passedCount  = fullPath.length - currentLength;
+    // +1 so the gray line visually connects to the start of the remaining blue line
+    const passedPath   = fullPath.slice(0, passedCount + 1);
+
+    // Draw passed portion in gray
+    if (passedPath.length >= 2) {
+        const passedLatLngs = passedPath
+            .map(id => stopById[id])
+            .filter(Boolean)
+            .map(s => [s.lat, s.lng]);
+
+        const grayLayer = L.polyline(passedLatLngs, {
+            color:   "#aaaaaa",
+            weight:  5,
+            opacity: 0.6,
+        }).addTo(map);
+
+        jeepneyRouteLayers.push(grayLayer);
+    }
+
+    // Draw remaining portion in blue (respects transfer splits)
+    if (remainingPath.length >= 2) {
+        const transfers = detectTransfers(remainingPath);
+        drawJeepneySegments(remainingPath, transfers);
+    }
+}
+
+
+// ============================================================
+// LOCKED ROUTE PROGRESS TRACKER
+// ============================================================
 function updateLockedRouteProgress(lat, lng) {
     if (!routeLocked || !remainingPath || remainingPath.length < 2) return;
 
-    // Progress %
-    const totalStops = lockedPathData.path.length;
-    const remainingStopsCount = remainingPath.length;
-
-    const progress =
-        ((totalStops - remainingStopsCount) / totalStops) * 100;
-
-    setStatusMessage(
-        `Following route • ${progress.toFixed(0)}% completed`,
-        "success"
-    );
-
-    let passedCount = 0;
-
-    // Transfer points in current route
-    const transfers = detectTransfers(remainingPath);
+    const totalStops      = lockedPathData.path.length;
+    const transfers       = detectTransfers(remainingPath);
+    const transferFromIds = new Set(transfers.map(t => t.from));
+    let   passedCount     = 0;
 
     for (let i = 0; i < remainingPath.length - 1; i++) {
-        const stop = stopById[remainingPath[i]];
+        const stop     = stopById[remainingPath[i]];
+        const nextStop = stopById[remainingPath[i + 1]];
         if (!stop) continue;
 
-        const distanceToStop = map.distance(
-            [lat, lng],
-            [stop.lat, stop.lng]
-        );
+        const distToStop = map.distance([lat, lng], [stop.lat, stop.lng]);
 
-        // ===================================================
-        // APPROACHING STOP ANNOUNCEMENT
-        // ===================================================
-        if (
-            distanceToStop <= 100 &&
-            lastAnnouncedStop !== stop.id
-        ) {
+        // ── Approaching current stop ──────────────────────────────────────
+        if (distToStop <= 100 && lastAnnouncedStop !== stop.id) {
             lastAnnouncedStop = stop.id;
-
-            speechSynthesis.speak(
-                new SpeechSynthesisUtterance(
-                    `Approaching ${stop.name}`
-                )
-            );
+            announce(`Approaching ${stop.name}`);
         }
 
-        // ===================================================
-        // TRANSFER ANNOUNCEMENT
-        // ===================================================
-        const transferPoint = transfers.find(
-            t => t.from === stop.id
-        );
-
+        // ── One stop before a TRANSFER ────────────────────────────────────
         if (
-            transferPoint &&
-            distanceToStop <= 150 &&
-            lastTransferAnnouncement !== stop.id
+            nextStop &&
+            transferFromIds.has(nextStop.id) &&
+            distToStop <= 200 &&
+            lastTransferAnnouncement !== `pre-transfer-${nextStop.id}`
         ) {
-            lastTransferAnnouncement = stop.id;
-
-            speechSynthesis.speak(
-                new SpeechSynthesisUtterance(
-                    `Prepare to transfer at ${stop.name}`
-                )
-            );
+            lastTransferAnnouncement = `pre-transfer-${nextStop.id}`;
+            announce(`Prepare to transfer at the next stop, ${nextStop.name}`);
         }
 
-        // ===================================================
-        // PASSED STOP CHECK
-        // ===================================================
-        if (distanceToStop <= PASSED_THRESHOLD) {
+        // ── AT the transfer stop ──────────────────────────────────────────
+        if (
+            transferFromIds.has(stop.id) &&
+            distToStop <= 150 &&
+            lastTransferAnnouncement !== `transfer-${stop.id}`
+        ) {
+            lastTransferAnnouncement = `transfer-${stop.id}`;
+            announce(`Transfer now at ${stop.name}`);
+        }
+
+        // ── One stop before FINAL endpoint ───────────────────────────────
+        const isLastSegmentStop = i === remainingPath.length - 2;
+        if (
+            isLastSegmentStop &&
+            distToStop <= 200 &&
+            lastAnnouncedStop !== `pre-end-${stop.id}`
+        ) {
+            lastAnnouncedStop = `pre-end-${stop.id}`;
+            announce(`Prepare to get off. Next stop is ${nextStop?.name ?? "your destination"}`);
+        }
+
+        // ── Passed stop check ─────────────────────────────────────────────
+        if (distToStop <= PASSED_THRESHOLD) {
             passedCount = i + 1;
         } else {
             break;
@@ -764,56 +830,34 @@ function updateLockedRouteProgress(lat, lng) {
 
     if (passedCount > 0) {
         remainingPath = remainingPath.slice(passedCount);
-        redrawLockedRoute();
+        redrawLockedRoute(); // _lastRedrawLength guard lives inside
+        renderRouteDetails();
     }
 
+    // ── Arrival at final jeepney stop ────────────────────────────────────
     const finalStop = stopById[remainingPath[remainingPath.length - 1]];
+    if (finalStop) {
+        const distToFinal     = map.distance([lat, lng], [finalStop.lat, finalStop.lng]);
+        const distFinalToICCT = map.distance([finalStop.lat, finalStop.lng], ICCT_POSITION);
 
-        if (
-            finalStop &&
-            map.distance([lat, lng], [finalStop.lat, finalStop.lng]) < PASSED_THRESHOLD &&
-            !arrivalAnnounced
-        ) {
+        if (distToFinal < PASSED_THRESHOLD && !arrivalAnnounced) {
             arrivalAnnounced = true;
 
-            speechSynthesis.speak(
-                new SpeechSynthesisUtterance(
-                    "You have arrived at your destination."
-                )
-            );
+            if (distFinalToICCT <= ICCT_WALK_RADIUS) {
+                announce(
+                    `You have arrived at ${finalStop.name}. ` +
+                    `Walk to ICCT from here. It is about ` +
+                    `${Math.round(distFinalToICCT)} meters away.`
+                );
+            } else {
+                announce("You have arrived at your destination.");
+            }
         }
-
-    renderRouteDetails();
-}
-
-function redrawLockedRoute() {
-    if (!lockedPathData || !remainingPath) return;
-
-    clearMapRoutes();
-
-    const fullPath      = lockedPathData.path;
-    const passedCount   = fullPath.length - remainingPath.length;
-    const passedCoords  = fullPath
-        .slice(0, passedCount + 1)
-        .map(id => {
-            const s = stopById[id];
-            return s ? [s.lat, s.lng] : null;
-        })
-        .filter(Boolean);
-
-    // Gray line for already-traveled portion
-    if (passedCoords.length >= 2) {
-        const grayLayer = L.polyline(passedCoords, {
-            color:   "#aaaaaa",
-            weight:  5,
-            opacity: 0.5,
-        }).addTo(map);
-        jeepneyRouteLayers.push(grayLayer);
     }
 
-    // Blue line for remaining portion
-    const transfers = detectTransfers(remainingPath);
-    drawJeepneySegments(remainingPath, transfers);
+    // ── Status bar ───────────────────────────────────────────────────────
+    const progress = ((totalStops - remainingPath.length) / totalStops) * 100;
+    setStatusMessage(`Following route • ${progress.toFixed(0)}% completed`, "success");
 }
 
 
@@ -843,7 +887,6 @@ function setStatusMessage(message, type = "info") {
 async function processUserLocation(lat, lng, force = false) {
     updateUserMarker(lat, lng);
 
-    // When locked: only update progress along existing route, never recalculate
     if (routeLocked) {
         updateLockedRouteProgress(lat, lng);
         return;
@@ -870,7 +913,7 @@ async function processUserLocation(lat, lng, force = false) {
 
     try {
         if (map.distance([lat, lng], ICCT_POSITION) > MAX_DISTANCE) {
-            alert("You are more than 15km away from ICCT.");
+            showToast("You are more than 15km away from ICCT.");
             stopTracking();
             return;
         }
@@ -880,7 +923,7 @@ async function processUserLocation(lat, lng, force = false) {
 
         const startStop = await getNearestStop(lat, lng);
         if (!startStop) {
-            alert("No nearby stop found.");
+            showToast("No nearby stop found.");
             return;
         }
 
@@ -904,7 +947,7 @@ async function processUserLocation(lat, lng, force = false) {
         });
 
         if (!bestEndStop) {
-            alert("No route found to ICCT.");
+            showToast("No route found to ICCT.");
             return;
         }
 
@@ -913,7 +956,7 @@ async function processUserLocation(lat, lng, force = false) {
         await drawWalkingRoute(lat, lng, startStop.lat, startStop.lng, "start");
 
         if (!path.length) {
-            alert("Unable to build route path.");
+            showToast("Unable to build route path.");
             return;
         }
 
@@ -957,6 +1000,7 @@ window.setJeepneyType = function (type) {
     selectedJeepneyType = type;
     renderRouteDetails();
 };
+
 
 // ============================================================
 // ROUTE DETAILS PANEL
@@ -1004,7 +1048,6 @@ function renderRouteDetails() {
         const currentStopId = displayPath[i];
         const nextStopId    = displayPath[i + 1];
         const edge          = (graph[currentStopId] || []).find(e => String(e.to) === String(nextStopId));
-        
 
         if (!edge) continue;
 
@@ -1046,7 +1089,9 @@ function renderRouteDetails() {
     const btnBase        = "flex:1;padding:8px;cursor:pointer;font-weight:bold;border-radius:4px;border:1px solid #0066ff;";
     const btnOn          = `${btnBase}background-color:#0066ff;color:#fff;`;
     const btnOff         = `${btnBase}background-color:#fff;color:#0066ff;`;
-    const remainingStops = (routeLocked && remainingPath) ? remainingPath.length : displayPath.length;
+
+    // FIX #5 — ETA in panel header
+    const etaMin = calcETAMinutes(displayPath);
 
     const lockBtnHTML = routeLocked
         ? `<button id="unlockRouteBtn" onclick="window.unlockRoute()"
@@ -1065,40 +1110,37 @@ function renderRouteDetails() {
                font-size:11px;padding:2px 8px;border-radius:10px;margin-left:6px;">LOCKED</span>`
         : `<span id="routeLockBadge" style="display:none;"></span>`;
 
-    const panel = document.getElementById("routeInfo");
+    const panel     = document.getElementById("routeInfo");
     const toggleBtn = document.getElementById("toggleRouteBtn");
 
     if (!panel) return;
 
-    // 1. STOPS GHOST BARS: If there's no active route data, hide everything and get out early!
     if (!globalActivePathData) {
         panel.style.display = "none";
         if (toggleBtn) toggleBtn.style.display = "none";
         return;
     }
 
-    // 2. SAFE TO PROCEED: We officially have data to show. Set up map event isolation.
     L.DomEvent.disableClickPropagation(panel);
     L.DomEvent.disableScrollPropagation(panel);
 
     if (toggleBtn) {
-        toggleBtn.style.display = "block"; 
-        L.DomEvent.disableClickPropagation(toggleBtn); // Fixed: Now safely inside braces
+        toggleBtn.style.display = "block";
+        L.DomEvent.disableClickPropagation(toggleBtn);
     }
 
-    // 3. VISIBILITY CHECK: Only default to block if it isn't explicitly minimized ("none")
-    // and isn't uninitialized ("") while data exists.
     if (panel.style.display === "" || panel.style.display === "block") {
         panel.style.display = "block";
     }
-    // Set responsive dynamic constraint bounds
-    panel.style.maxHeight = "calc(100% - 150px)"; 
+
+    panel.style.maxHeight = "calc(100% - 150px)";
     panel.style.overflowY = "auto";
 
     panel.innerHTML = `
         <div style="font-family:sans-serif;line-height:1.4;">
             <h3 style="margin:0 0 8px 0;color:#0066ff;">
                 Active Route Directions ${lockedBadge}
+                <span style="font-size:13px;font-weight:normal;color:#555;">~${etaMin} min ride</span>
             </h3>
 
             ${lockBtnHTML}
@@ -1182,8 +1224,12 @@ function renderSuggestions(features) {
         div.textContent = place.properties.formatted;
 
         div.onclick = async () => {
-            stopTracking();
-            locationMode = "search";
+    if (routeLocked) {
+        showToast("Unlock the route first before changing location.");
+        return;
+    }
+    stopTracking();
+    locationMode = "search";
 
             const lat = place.properties.lat;
             const lng = place.properties.lon;
@@ -1194,7 +1240,7 @@ function renderSuggestions(features) {
             );
 
             await processUserLocation(lat, lng, true);
-            input.value = place.properties.formatted;
+            input.value   = place.properties.formatted;
             box.innerHTML = "";
         };
 
@@ -1209,24 +1255,27 @@ function renderSuggestions(features) {
 function startTracking() {
     stopTracking();
 
-    let running = false;
+    let running   = false;
     let firstTick = true;
 
     watchId = navigator.geolocation.watchPosition(
         async position => {
             if (running) return;
-            running = true;
 
+            if (routeLocked) {
+                const now = Date.now();
+                if (now - _lastLockedTick < LOCKED_TRACKING_INTERVAL_MS) return;
+                _lastLockedTick = now;
+            }
+
+            running = true;
             try {
                 const { latitude, longitude, accuracy } = position.coords;
                 if (accuracy > 50) return;
                 await processUserLocation(latitude, longitude, firstTick);
                 firstTick = false;
-            } catch {
-                // Silently handle
-            } finally {
-                running = false;
-            }
+            } catch { /* silent */ }
+            finally { running = false; }
         },
         error => {
             const messages = {
@@ -1234,13 +1283,9 @@ function startTracking() {
                 [error.POSITION_UNAVAILABLE]: "Location unavailable.",
                 [error.TIMEOUT]:              "GPS timeout. Retrying...",
             };
-            alert(messages[error.code] || "Unknown GPS error.");
+            showToast(messages[error.code] || "Unknown GPS error.");
         },
-        {
-            enableHighAccuracy: true,
-            maximumAge: 3000,
-            timeout:    30000,
-        }
+        { enableHighAccuracy: true, maximumAge: 3000, timeout: 30000 }
     );
 }
 
@@ -1285,6 +1330,8 @@ const FullscreenControl = L.Control.extend({
 });
 
 map.addControl(new FullscreenControl());
+
+
 // ============================================================
 // RECENTER CONTROL
 // ============================================================
@@ -1292,40 +1339,22 @@ const RecenterControl = L.Control.extend({
     options: { position: "bottomright" },
 
     onAdd() {
-        const container = L.DomUtil.create(
-            "div",
-            "leaflet-bar leaflet-control"
-        );
+        const container = L.DomUtil.create("div", "leaflet-bar leaflet-control");
+        const btn       = L.DomUtil.create("a", "", container);
 
-        const btn = L.DomUtil.create(
-            "a",
-            "",
-            container
-        );
-
-        btn.href = "#";
-        btn.innerHTML = "📍";
-        btn.title = "Center on me";
-
-        btn.style.fontSize = "20px";
-        btn.style.textAlign = "center";
+        btn.href          = "#";
+        btn.innerHTML     = "📍";
+        btn.title         = "Center on me";
+        btn.style.fontSize   = "20px";
+        btn.style.textAlign  = "center";
 
         L.DomEvent.disableClickPropagation(container);
 
         btn.onclick = e => {
             e.preventDefault();
-
             followUser = true;
-
             if (userMarker) {
-                map.flyTo(
-                    userMarker.getLatLng(),
-                    18,
-                    {
-                        animate: true,
-                        duration: 1
-                    }
-                );
+                map.flyTo(userMarker.getLatLng(), 18, { animate: true, duration: 1 });
             }
         };
 
@@ -1335,42 +1364,38 @@ const RecenterControl = L.Control.extend({
 
 map.addControl(new RecenterControl());
 
-// asa
-
-
 
 // ============================================================
 // FARE PANEL TOGGLE
 // ============================================================
 window.toggleRoutePanel = function () {
     const panel = document.getElementById("routeInfo");
-    const btn = document.getElementById("toggleRouteBtn");
-    
+    const btn   = document.getElementById("toggleRouteBtn");
+
     if (!panel || !btn) return;
 
-    // Direct inline-style check matching your state management pattern
     if (panel.style.display === "none") {
         panel.style.display = "block";
-        btn.innerHTML = "◀";
-        btn.title = "Hide Details";
+        btn.innerHTML       = "◀";
+        btn.title           = "Hide Details";
         btn.style.background = "#ffffff";
-        btn.style.color = "#333";
+        btn.style.color      = "#333";
     } else {
-        panel.style.display = "none";
-        btn.innerHTML = "▶";
-        btn.title = "Show Details";
+        panel.style.display  = "none";
+        btn.innerHTML        = "▶";
+        btn.title            = "Show Details";
         btn.style.background = "#6D94C5";
-        btn.style.color = "#ffffff";
+        btn.style.color      = "#ffffff";
     }
 };
 
-// Prevent map interactions when clicking/dragging the toggle button
 const toggleBtn = document.getElementById("toggleRouteBtn");
 if (toggleBtn) {
-    toggleBtn.addEventListener('click', (e) => e.stopPropagation());
-    toggleBtn.addEventListener('mousedown', (e) => e.stopPropagation());
-    toggleBtn.addEventListener('touchstart', (e) => e.stopPropagation());
+    toggleBtn.addEventListener("click",      e => e.stopPropagation());
+    toggleBtn.addEventListener("mousedown",  e => e.stopPropagation());
+    toggleBtn.addEventListener("touchstart", e => e.stopPropagation());
 }
+
 
 // ============================================================
 // PUBLIC API
@@ -1378,9 +1403,15 @@ if (toggleBtn) {
 window.startTracking = startTracking;
 window.stopTracking  = stopTracking;
 
+
+
 window.useCurrentLocation = () => {
+    if (routeLocked) {
+        showToast("Unlock the route first before changing location.");
+        return;
+    }
     if (!navigator.geolocation) {
-        alert("GPS not supported in this browser.");
+        showToast("GPS not supported in this browser.");
         return;
     }
     locationMode = "gps";

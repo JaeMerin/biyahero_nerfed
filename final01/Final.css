@@ -41,6 +41,21 @@ li {
     list-style: none;
 }
 
+#announcementToast {
+    display:none;
+    position:fixed;
+    top:16px;
+    left:50%;
+  transform:translateX(-50%);
+  background:rgba(0,0,0,0.82);color:#fff;
+  padding:10px 20px;
+  border-radius:24px;
+  font-size:15px;z-index:9999;
+  max-width:80vw;
+  text-align:center;
+  pointer-events:none;
+}
+
 
 /* ============================================================
    HEADER
@@ -599,6 +614,8 @@ tbody tr:last-child td:last-child  { border-bottom-right-radius: 12px; }
     display: none !important;
 }
 
+
+
 /* Optional: Style for a floating map button if you want it on the map */
 .legend-toggle-btn {
     background: white;
@@ -640,7 +657,7 @@ tbody tr:last-child td:last-child  { border-bottom-right-radius: 12px; }
     border-radius: 12px;
     position: relative;
     text-align: center;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    /* box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); */
 }
 
 .matrix-img {
@@ -994,10 +1011,13 @@ footer {
 .input-box i {
     position: absolute;
     top: 50%;
-    right: 0;
+    right: 5px;
     transform: translateY(-50%);
     font-size: 18px;
     transition: 0.5s;
+    z-index: 10;          /* Forces the icon to float above desktop sliding panels */
+    cursor: pointer;      /* Gives the user a visual pointer cue on hover */
+    padding: 10px;          /* Increases the clickable area around the icon for better UX */
 }
 
 .input-box input:focus ~ i,
@@ -1310,11 +1330,13 @@ form .linkTxt a {
         height: 100%;
         padding: 30px;
         transition: 0.6s ease-in-out;
+        z-index: 5;
     }
 
     /* 1. Hide the inactive form completely on mobile */
     .wrapper .form-box.login {
         display: flex; /* Kept flex for interior column layout */
+        z-index: 6; /* Ensures the login form is on top by default */
     }
     .wrapper .form-box.register {
         display: none;

@@ -40,6 +40,16 @@ document.addEventListener("DOMContentLoaded", function () {
 const isRecovery =
     window.location.hash.includes("access_token");
 
+function toggleFormFields(isActive, formSelector) {
+    const fields = document.querySelectorAll(`${formSelector} input, ${formSelector} button`);
+    fields.forEach(field => {
+        field.disabled = !isActive;
+    });
+}
+// ============================================================
+// SECTION 2 — LOGIN / REGISTER WRAPPER TOGGLE
+// ============================================================
+
 // ============================================================
 // SECTION 2 — LOGIN / REGISTER WRAPPER TOGGLE
 // ============================================================
@@ -48,14 +58,37 @@ const wrapper      = document.querySelector(".wrapper");
 const registerLink = document.querySelector(".register-link");
 const loginLink    = document.querySelector(".login-link");
 
+if (wrapper) {
+    toggleFormFields(true, '.form-box.login');
+    toggleFormFields(false, '.form-box.register');
+}
+
 if (registerLink) registerLink.addEventListener('click', (e) => {
     e.preventDefault();
     wrapper.classList.add('active');
+    toggleFormFields(false, '.form-box.login');
+    toggleFormFields(true, '.form-box.register');
+
+    // Disable forgot password link when on register view
+    const forgotLink = document.getElementById("forgotPasswordLink");
+    if (forgotLink) {
+        forgotLink.style.pointerEvents = "none";
+        forgotLink.style.opacity = "0.4";
+    }
 });
 
 if (loginLink) loginLink.addEventListener('click', (e) => {
     e.preventDefault();
     wrapper.classList.remove('active');
+    toggleFormFields(true, '.form-box.login');
+    toggleFormFields(false, '.form-box.register');
+
+    // Re-enable forgot password link when back on login view
+    const forgotLink = document.getElementById("forgotPasswordLink");
+    if (forgotLink) {
+        forgotLink.style.pointerEvents = "";
+        forgotLink.style.opacity = "";
+    }
 });
 
 // ============================================================
@@ -104,7 +137,9 @@ if (loginBtn && logPopup) {
             document.body.style.overflow = "auto";
         }
     });
+
 }
+
 
 // ============================================================
 // SECTION 5 — DARK MODE
@@ -295,5 +330,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // slight delay to let Supabase process the token first
         setTimeout(openResetModal, 500);
     }
+
+    
 
 });
