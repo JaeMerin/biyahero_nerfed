@@ -4,21 +4,6 @@ import supabase from "./auth.js";
 // SECTION 1 — FARE MATRIX POPUP
 // ============================================================
 
-// DEBUG — remove after fixing
-// DEBUG — paste at top, remove after fix
-window.addEventListener("load", async () => {
-    console.log("--- RESET DEBUG ---");
-    console.log("Full URL:", window.location.href);
-    console.log("Hash:", window.location.hash);
-
-    const { data: { session }, error } = await supabase.auth.getSession();
-    console.log("Session:", session);
-    console.log("Session error:", error);
-
-    const modal = document.getElementById("resetPasswordModal");
-    console.log("Modal found:", modal);
-});
-
 const urlParams = new URLSearchParams(window.location.search);
 console.log("code param:", urlParams.get("code"));
 

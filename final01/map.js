@@ -23,7 +23,7 @@ const PASSED_THRESHOLD  = 80;    // meters — how close to a stop before it's "
  
 // Graph cache: rebuild after 6 hours
 const GRAPH_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
-const GRAPH_CACHE_KEY    = "jeepney_graph_v1";
+const GRAPH_CACHE_KEY    = "jeepney_graph_v2";
 
 const API_KEY = import.meta.env.VITE_GEOAPIFY_KEY;
 
@@ -36,6 +36,7 @@ let stopById              = {};
 let graph                 = null;
 let stopRoutes            = {};
 let routeEndpoints        = {};
+let routeNames            = {};
 let userMarker            = null;
 let jeepneyRouteLayers    = [];
 let walkingRouteLayer     = null;
@@ -130,6 +131,13 @@ legend.onAdd = function (map) {
 legend.addTo(map);
 
 // ─── NEW CODE: LEAFLET CONTROL BUTTON FOR TOGGLE ────────────────
+window.toggleMapLegend = function () {
+    const legendEl = document.querySelector(".map-legend");
+    if (legendEl) {
+        legendEl.classList.toggle("hidden");
+    }
+};
+
 const legendToggle = L.control({ position: 'bottomright' });
 
 legendToggle.onAdd = function (map) {
@@ -172,6 +180,26 @@ function clearMapRoutes() {
 // ============================================================
 // DATA LOADING
 // ============================================================
+async function loadRouteNames() {
+    if (Object.keys(routeNames).length > 0) return routeNames;
+
+    const { data, error } = await supabase
+        .from("routes")
+        .select("id, route_name");
+
+    if (error) {
+        console.error("Error loading routes:", error.message);
+        return {};
+    }
+
+    routeNames = {};
+    (data || []).forEach(r => {
+        routeNames[String(r.id)] = r.route_name;
+    });
+
+    return routeNames;
+}
+
 async function loadStops() {
     const { data, error } = await supabase
         .from("stops")
@@ -210,12 +238,14 @@ async function buildGraph() {
                 graph        = data.graph;
                 stopRoutes   = data.stopRoutes;  // plain objects (Sets serialized as arrays)
                 routeEndpoints = data.routeEndpoints;
+                routeNames   = data.routeNames || {};
  
                 // Re-hydrate Sets
                 for (const id in stopRoutes) stopRoutes[id] = new Set(stopRoutes[id]);
  
                 // Stops may not be loaded yet if we hit the cache before loadStops()
                 if (!stops.length) await loadStops();
+                if (Object.keys(routeNames).length === 0) await loadRouteNames();
  
                 return graph;
             }
@@ -227,6 +257,7 @@ async function buildGraph() {
  
     // ── Build fresh ─────────────────────────────────────────
     await loadStops();
+    await loadRouteNames();
  
     const { data: routeStops, error } = await supabase
         .from("route_stops")
@@ -309,7 +340,7 @@ async function buildGraph() {
  
         localStorage.setItem(GRAPH_CACHE_KEY, JSON.stringify({
             timestamp: Date.now(),
-            data: { graph, stopRoutes: stopRoutesSerializable, routeEndpoints },
+            data: { graph, stopRoutes: stopRoutesSerializable, routeEndpoints, routeNames },
         }));
     } catch {
         // Storage quota exceeded — silently skip
@@ -809,7 +840,7 @@ function setStatusMessage(message, type = "info") {
 // ============================================================
 // MAIN ROUTE PROCESSOR
 // ============================================================
-async function processUserLocation(lat, lng) {
+async function processUserLocation(lat, lng, force = false) {
     updateUserMarker(lat, lng);
 
     // When locked: only update progress along existing route, never recalculate
@@ -821,13 +852,15 @@ async function processUserLocation(lat, lng) {
     const posKey = `${lat.toFixed(5)},${lng.toFixed(5)}`;
     const now    = Date.now();
 
-    if (now - lastRun < DEBOUNCE_MS) return;
-    if (lastUserPos === posKey) return;
+    if (!force) {
+        if (now - lastRun < DEBOUNCE_MS) return;
+        if (lastUserPos === posKey) return;
+    }
 
     lastRun     = now;
     lastUserPos = posKey;
 
-    if (lastCoords && map.distance([lat, lng], lastCoords) < MOVE_THRESHOLD) return;
+    if (!force && lastCoords && map.distance([lat, lng], lastCoords) < MOVE_THRESHOLD) return;
 
     lastCoords = [lat, lng];
 
@@ -955,8 +988,10 @@ function renderRouteDetails() {
         totalTripRegularFare    += regFare;
         totalTripDiscountedFare += discFare;
 
+        const routeName = routeNames[String(currentRouteId)] || `Route ${currentRouteId}`;
+
         jeepneyLegsHTML += `
-            <b>Jeepney ${legCount} (Route ${currentRouteId}):</b>
+            <b>${routeName}:</b>
             ${(currentSegmentDistance / 1000).toFixed(2)} km<br>
             &nbsp;&nbsp;&nbsp;&nbsp;Regular: ₱${regFare.toFixed(2)} | Disc: ₱${discFare.toFixed(2)}<br><br>`;
 
@@ -1158,7 +1193,7 @@ function renderSuggestions(features) {
                 { padding: [60, 60], animate: true, duration: 1 }
             );
 
-            await processUserLocation(lat, lng);
+            await processUserLocation(lat, lng, true);
             input.value = place.properties.formatted;
             box.innerHTML = "";
         };
@@ -1175,6 +1210,7 @@ function startTracking() {
     stopTracking();
 
     let running = false;
+    let firstTick = true;
 
     watchId = navigator.geolocation.watchPosition(
         async position => {
@@ -1184,7 +1220,8 @@ function startTracking() {
             try {
                 const { latitude, longitude, accuracy } = position.coords;
                 if (accuracy > 50) return;
-             await processUserLocation(latitude, longitude);
+                await processUserLocation(latitude, longitude, firstTick);
+                firstTick = false;
             } catch {
                 // Silently handle
             } finally {
@@ -1300,34 +1337,7 @@ map.addControl(new RecenterControl());
 
 // asa
 
-// ============================================================
-// FARE PANEL TOGGLE CONTROL
-// ============================================================
-const FareToggleControl = L.Control.extend({
-    options: { position: "topright" }, // Stacks directly below the fullscreen button
 
-    onAdd() {
-        const container = L.DomUtil.create("div", "leaflet-control");
-        const btn       = L.DomUtil.create("button", "", container);
-
-        btn.id        = "toggleRouteBtn";
-        btn.innerHTML = "◀";
-        btn.title     = "Hide Details";
-        btn.style.display = "none"; // Starts hidden until a route is calculated
-
-        L.DomEvent.disableClickPropagation(container);
-
-        btn.onclick = e => {
-            e.preventDefault();
-            window.toggleRoutePanel();
-        };
-
-        return container;
-    }
-});
-
-// Add it to the map AFTER the fullscreen control so it sits underneath it
-map.addControl(new FareToggleControl());
 
 // ============================================================
 // FARE PANEL TOGGLE

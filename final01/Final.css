@@ -551,7 +551,7 @@ tbody tr:last-child td:last-child  { border-bottom-right-radius: 12px; }
     margin: 0 0 10px 0;
     font-size: 14px;
     font-weight: bold;
-    color: #0066ff;
+    color: #6D94C5;
     border-bottom: 2px solid #f0f0f0;
     padding-bottom: 4px;
 }
@@ -2015,6 +2015,20 @@ body.dark-mode #resetPasswordModal button[type="submit"] {
 body.dark-mode #resetPasswordModal button[type="submit"]:hover {
     background: #6D94C5;
 }
+
+body.dark-mode .map-legend {
+    background: #1e1e1e;
+    color: #e0e0e0;
+    border: 2px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+body.dark-mode .legend-toggle-btn {
+    background: #2a2a2a;
+    color: #e0e0e0;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
 
 /* Wrapper */
         .rd-wrapper       { font-family: sans-serif; line-height: 1.4; }
