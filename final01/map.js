@@ -118,10 +118,6 @@ legend.onAdd = function (map) {
             <span class="legend-line line-walk-end"></span>
             <span>Walk to Campus Gate</span>
         </div>
-        <div class="legend-item">
-            <span class="legend-line line-traveled"></span>
-            <span>Passed Route (Nav)</span>
-        </div>
     `;
 
     L.DomEvent.disableClickPropagation(div);

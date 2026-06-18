@@ -100,6 +100,11 @@ function setupToggle(inputId, toggleId) {
     const toggleIcon    = document.getElementById(toggleId);
     if (!passwordField || !toggleIcon) return;
 
+
+    if (!passwordField || !toggleIcon) {
+        return;
+    }
+
     toggleIcon.onclick = function () {
         const isHidden = passwordField.type === "password";
         passwordField.type = isHidden ? "text" : "password";
@@ -108,9 +113,12 @@ function setupToggle(inputId, toggleId) {
     };
 }
 
-setupToggle("loginPassword",    "toggleLoginPassword");
-setupToggle("registerPassword", "toggleRegisterPassword");
-
+document.addEventListener("DOMContentLoaded", () => {
+    setupToggle("loginPassword",    "toggleLoginPassword");
+    setupToggle("registerPassword", "toggleRegisterPassword");
+    setupToggle("newPassword",       "toggleNewPassword");
+    setupToggle("confirmPassword",   "toggleConfirmPassword");
+});
 // ============================================================
 // SECTION 4 — LOGIN POPUP
 // ============================================================
@@ -251,7 +259,7 @@ if (forgotLink && forgotModal) {
         }
 
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: "https://biyaheroes.netlify.app/index.html"
+            redirectTo: `${window.location.origin}`
         });
 
         if (error) {
@@ -264,6 +272,7 @@ if (forgotLink && forgotModal) {
     });
 }
 document.addEventListener("DOMContentLoaded", () => {
+
 
     function openResetModal() {
         console.log("openResetModal called"); // debug
@@ -298,7 +307,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             alert("Password updated successfully!");
             await supabase.auth.signOut();
-            window.location.href = "/index.html";
+            window.location.href = window.location.origin;
         });
     }
 

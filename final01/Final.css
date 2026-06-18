@@ -1181,6 +1181,10 @@ form .linkTxt a {
     top: 15px;
     color: #1e2a40;
     font-size: 20px;
+    z-index: 10;                /* CRITICAL: Forces icon to sit on top of the input layer */
+    cursor: pointer;            /* Shows the hand/pointer cursor on hover */
+    padding: 5px;  
+
 }
 
 #sendResetLink {
@@ -1977,6 +1981,9 @@ body.dark-mode #toggleRouteBtn:hover {
     cursor: pointer;
     font-size: 22px;
     color: #64748b;
+    z-index: 10;                /* CRITICAL: Forces icon to sit on top of the input layer */
+    cursor: pointer;            /* Shows the hand/pointer cursor on hover */
+    padding: 5px;  
 }
 
 #resetPasswordModal button[type="submit"] {
