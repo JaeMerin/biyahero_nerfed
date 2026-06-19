@@ -7,10 +7,12 @@ export default defineConfig({
   build: {
     outDir: '../dist',
     emptyOutDir: true,
+    minify: 'esbuild',
+
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'final01/index.html'),
-        admin: resolve(__dirname, 'final01/Admin.html')
+        admin: resolve(__dirname, 'final01/admin.html')
       }
     }
   },
