@@ -148,7 +148,6 @@ if (loginBtn && logPopup) {
 
 }
 
-
 // ============================================================
 // SECTION 5 — DARK MODE
 // ============================================================
@@ -194,18 +193,61 @@ if (menuToggle && navGroup) {
 document.addEventListener("DOMContentLoaded", async () => {
     const loginBtn  = document.getElementById("loginBtn");
     const logoutBtn = document.getElementById("logoutBtn");
-    if (!loginBtn || !logoutBtn) return;
+    const backBtn   = document.getElementById("dashboard");
 
-    const { data: { user } } = await supabase.auth.getUser();
+    // 🌟 1. Lift variables to the outer function scope so they don't cause reference crashes
+    let role = null;
+    let isAdminEmail = false;
 
-    loginBtn.style.display  = user ? "none"  : "block";
-    logoutBtn.style.display = user ? "block" : "none";
+    // if (!loginBtn || !logoutBtn) return;
 
+ const { data: { user } } = await supabase.auth.getUser();
+
+    if (user) {
+        loginBtn.style.display  = "none";
+        logoutBtn.style.display = "block";
+
+// 🌟 FETCH REAL-TIME ROLE FROM PUBLIC.PROFILES TABLE
+        const { data: profile, error } = await supabase
+            .from("profiles")
+            .select("role")
+            .eq("id", user.id) // Matches the logged-in user's unique ID
+            .maybeSingle();
+
+        if (error) {
+            console.error("Error fetching user profile role:", error.message);
+        }
+
+        const role = profile?.role; // Grabs the "admin" value you typed in the table
+        const isAdminEmail = user.email === "admin@example.com"; 
+
+        // 🌟 EVALUATE REDIRECTS
+        if ((role === "admin" || isAdminEmail) &&
+    window.location.pathname.includes("login.html")) {
+
+    window.location.href = "./admin.html";
+}
+
+if (backBtn) {
+        backBtn.addEventListener("click", () => {
+            window.location.href = "admin.html";
+        });
+
+        backBtn.style.display =
+            (role === "admin" || isAdminEmail) ? "inline-flex" : "none";
+    }
+
+    } else {
+        loginBtn.style.display  = "block";
+        logoutBtn.style.display = "none";
+    }
     logoutBtn.addEventListener("click", async () => {
         await supabase.auth.signOut();
         window.location.href = window.location.origin;
     });
 });
+
+
 
 // ============================================================
 // SECTION 8 — ROUTE INFO VISIBILITY

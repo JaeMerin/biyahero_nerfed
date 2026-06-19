@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JeepRoute Admin — ICCT Cainta Campus</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<link rel="stylesheet" href="Admin.css">
+</head>
+<body>
+
+<div class="app">
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">Biyaheroes Admin</div>
+      <div class="sidebar-sub">ICCT Cainta Campus</div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">Overview</div>
+      <button class="nav-item active" onclick="showSection('dashboard')">
+        <i class="ti ti-layout-dashboard"></i> Dashboard
+      </button>
+
+      <div class="nav-section">Data tables</div>
+      <button class="nav-item" onclick="showSection('profiles')">
+        <i class="ti ti-users"></i> Profiles
+      </button>
+      <button class="nav-item" onclick="showSection('routes')">
+        <i class="ti ti-route"></i> Routes
+      </button>
+      <button class="nav-item" onclick="showSection('stops')">
+        <i class="ti ti-map-pin"></i> Stops
+      </button>
+      <button class="nav-item" onclick="showSection('route-stops')">
+        <i class="ti ti-list-details"></i> Route stops
+      </button>
+    </nav>
+  </aside>
+
+  <!-- Main content -->
+  <div class="main">
+    <!-- Top bar -->
+    <header class="topbar">
+      <div>
+        <div class="topbar-title" id="topbar-title">Dashboard</div>
+        <div class="topbar-meta" id="topbar-meta">Overview of all system data</div>
+      </div>
+      <div class="topbar-right">
+  <span class="badge badge-green">System online</span>
+  <button class="btn" onclick="window.location.href='index.html'">
+  <i class="ti ti-home"></i> Main Page
+</button>
+  <button class="btn">
+    <i class="ti ti-user-circle"></i> postgres
+  </button>
+
+  <button class="btn btn-danger" onclick="logout()">
+    <i class="ti ti-logout"></i> Logout
+  </button>
+</div>
+    </header>
+
+    <!-- DASHBOARD -->
+    <section id="section-dashboard" class="section active">
+      <div class="content">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">Total users</div>
+            <div class="stat-val" id="stat-users">12</div>
+            <div class="stat-sub">profiles</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Routes</div>
+            <div class="stat-val" id="stat-routes">12</div>
+            <div class="stat-sub">active</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Stops</div>
+            <div class="stat-val" id="stat-stops">12</div>
+            <div class="stat-sub">mapped</div>
+          </div>
+        </div>
+        <div class="table-card">
+          <div class="table-header">
+            <div class="table-title">Recent routes</div>
+            <button class="btn btn-blue" onclick="showSection('routes')">
+              <i class="ti ti-arrow-right"></i> View all
+            </button>
+          </div>
+          <table>
+            <colgroup><col style="width:60px"><col><col style="width:120px"></colgroup>
+            <thead>
+              <tr><th>ID</th><th>Route name</th><th>Action</th></tr>
+            </thead>
+            <tbody id="dash-routes-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- PROFILES -->
+    <section id="section-profiles" class="section">
+      <div class="content">
+        <div class="table-card">
+          <div class="table-header">
+            <div class="table-header-left">
+              <div class="table-title">User profiles</div>
+              <div class="search-box">
+                <i class="ti ti-search" style="font-size:14px;color:var(--text-tertiary)"></i>
+                <input type="text" placeholder="Search username or email…" id="profile-search" oninput="filterProfiles(this.value)">
+              </div>
+            </div>
+            <span class="badge badge-blue" id="profile-count">12 accounts</span>
+          </div>
+          <table>
+            <colgroup><col style="width:44px"><col style="width:140px"><col><col style="width:130px"><col style="width:110px"></colgroup>
+            <thead>
+              <tr><th></th><th>Username</th><th>Email</th><th>Created</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="profiles-tbody"></tbody>
+          </table>
+          <div class="pagination">
+            <span id="profile-page-info">Showing 1–12 of 12</span>
+            <div class="page-btns"><button class="page-btn active">1</button></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ROUTES -->
+    <section id="section-routes" class="section">
+      <div class="content">
+        <div class="table-card">
+          <div class="table-header">
+            <div class="table-header-left">
+              <div class="table-title">Routes</div>
+              <div class="search-box">
+                <i class="ti ti-search" style="font-size:14px;color:var(--text-tertiary)"></i>
+                <input type="text" placeholder="Search route name…" oninput="filterRoutes(this.value)">
+              </div>
+            </div>
+            <button class="btn btn-blue" onclick="openAddRoute()">
+              <i class="ti ti-plus"></i> Add route
+            </button>
+          </div>
+          <table>
+            <colgroup><col style="width:60px"><col><col style="width:120px"></colgroup>
+            <thead>
+              <tr><th>ID</th><th>Route name</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="routes-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- STOPS -->
+    <section id="section-stops" class="section">
+      <div class="content">
+        <div class="table-card">
+          <div class="table-header">
+            <div class="table-header-left">
+              <div class="table-title">Stops</div>
+              <div class="search-box">
+                <i class="ti ti-search" style="font-size:14px;color:var(--text-tertiary)"></i>
+                <input type="text" placeholder="Search stop name…" oninput="filterStops(this.value)">
+              </div>
+            </div>
+            <button class="btn btn-blue" onclick="openAddStop()">
+              <i class="ti ti-plus"></i> Add stop
+            </button>
+          </div>
+          <table>
+            <colgroup><col style="width:50px"><col><col style="width:130px"><col style="width:130px"><col style="width:100px"></colgroup>
+            <thead>
+              <tr><th>ID</th><th>Stop name</th><th>Latitude</th><th>Longitude</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="stops-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ROUTE STOPS -->
+    <section id="section-route-stops" class="section">
+      <div class="content">
+        <div class="table-card">
+          <div class="table-header">
+            <div class="table-title">Route stops <span style="font-weight:400;color:var(--text-secondary)">(junction table)</span></div>
+            <div class="search-box">
+                <i class="ti ti-search" style="font-size:14px;color:var(--text-tertiary)"></i>
+                <input type="text" placeholder="Search Route name or id" id="rs-search" oninput="filterRouteStops(this.value)">
+              </div>
+            <span class="badge badge-blue" id="rs-count">12 records</span>
+          </div>
+          <table>
+            <colgroup><col style="width:50px"><col style="width:90px"><col style="width:90px"><col style="width:90px"><col><col style="width:100px"></colgroup>
+            <thead>
+              <tr><th>ID</th><th>Route ID</th><th>Stop ID</th><th>Order</th><th>Route name</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="rs-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<!-- ── Modals ── -->
+
+<!-- Edit profile -->
+<div class="overlay" id="modal-edit-profile">
+  <div class="modal">
+    <h3>Edit profile</h3>
+    <p class="modal-sub">Update user account information</p>
+    <div class="form-row">
+      <label class="form-label">UUID (read only)</label>
+      <input class="form-input" id="ep-id" disabled>
+    </div>
+    <div class="form-row">
+      <label class="form-label">Username</label>
+      <input class="form-input" id="ep-username" placeholder="Enter username">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Email</label>
+      <input class="form-input" type="email" id="ep-email" placeholder="Enter email">
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-edit-profile')">Cancel</button>
+      <button class="btn btn-blue" onclick="saveProfile()">
+        <i class="ti ti-check"></i> Save changes
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete profile -->
+<div class="overlay" id="modal-delete-profile">
+  <div class="modal">
+    <h3>Delete account</h3>
+    <p class="modal-sub">This action cannot be undone</p>
+    <div class="confirm-box">
+      <i class="ti ti-alert-triangle"></i>
+      You are about to permanently delete <strong id="del-username-label"></strong>.
+      All associated data will be removed from the system.
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-delete-profile')">Cancel</button>
+      <button class="btn btn-danger" onclick="confirmDeleteProfile()">
+        <i class="ti ti-trash"></i> Delete account
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit / Add route -->
+<div class="overlay" id="modal-edit-route">
+  <div class="modal">
+    <h3 id="route-modal-heading">Edit route</h3>
+    <p class="modal-sub">Update route information</p>
+    <input type="hidden" id="er-id">
+    <div class="form-row">
+      <label class="form-label">Route name</label>
+      <input class="form-input" id="er-name" placeholder="e.g. Novaliches–Cubao">
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-edit-route')">Cancel</button>
+      <button class="btn btn-blue" onclick="saveRoute()">
+        <i class="ti ti-check"></i> Save
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit / Add stop -->
+<div class="overlay" id="modal-edit-stop">
+  <div class="modal">
+    <h3 id="stop-modal-heading">Edit stop</h3>
+    <p class="modal-sub">Update stop details and coordinates</p>
+    <input type="hidden" id="es-id">
+    <div class="form-row">
+      <label class="form-label">Stop name</label>
+      <input class="form-input" id="es-name" placeholder="e.g. Puregold San Rafael">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Latitude</label>
+      <input class="form-input" type="number" step="0.00001" id="es-lat" placeholder="14.73543660">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Longitude</label>
+      <input class="form-input" type="number" step="0.00001" id="es-lng" placeholder="121.15410200">
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-edit-stop')">Cancel</button>
+      <button class="btn btn-blue" onclick="saveStop()">
+        <i class="ti ti-check"></i> Save
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit route stop -->
+<div class="overlay" id="modal-edit-rs">
+  <div class="modal">
+    <h3>Edit route stop</h3>
+    <p class="modal-sub">Update the junction record</p>
+    <input type="hidden" id="ers-id">
+    <div class="form-row">
+      <label class="form-label">Route ID</label>
+      <input class="form-input" type="number" id="ers-route">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Stop ID</label>
+      <input class="form-input" type="number" id="ers-stop">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Stop order</label>
+      <input class="form-input" type="number" id="ers-order">
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-edit-rs')">Cancel</button>
+      <button class="btn btn-blue" onclick="saveRS()">
+        <i class="ti ti-check"></i> Save
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script type="module" src="Admin.js"></script>
+
+</body>
+</html>

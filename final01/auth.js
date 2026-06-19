@@ -5,7 +5,10 @@ export async function registerUser(email, password, username) {
     email,
     password,
     options: {
-      data: { username }
+      data: { username,
+        role: "user"
+       }
+        
     }
   })
   console.log("Signup result:", data)
