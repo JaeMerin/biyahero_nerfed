@@ -225,7 +225,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         if ((role === "admin" || isAdminEmail) &&
     window.location.pathname.includes("login.html")) {
 
-    window.location.href = "./admin.html";
+    window.location.href = "admin.html";
 }
 
 if (backBtn) {
