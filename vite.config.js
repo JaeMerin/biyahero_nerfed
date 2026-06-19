@@ -1,21 +1,26 @@
-  import { defineConfig } from 'vite'
-
+import { defineConfig } from 'vite'
+import { resolve } from 'path'
 
 export default defineConfig({
- // 1. Tell Vite your source files live inside final01
- root: 'final01',
-  build: {
-   // 2. Tell Vite to jump OUT of final01 and put the finished build in the root
-   outDir: '../dist',
-   emptyOutDir: true,
-   minify: 'esbuild',
- },
-  server: {
-   port: 5500,
-   host: true
- },
-  esbuild: {
-   drop: ['console', 'debugger'],
- }
-})
+  root: 'final01',
 
+  build: {
+    outDir: '../dist',
+    emptyOutDir: true,
+    rollupOptions: {
+      input: {
+        main: resolve(__dirname, 'final01/Index.html'),
+        admin: resolve(__dirname, 'final01/Admin.html')
+      }
+    }
+  },
+
+  server: {
+    port: 5500,
+    host: true
+  },
+
+  esbuild: {
+    drop: ['console', 'debugger']
+  }
+})
