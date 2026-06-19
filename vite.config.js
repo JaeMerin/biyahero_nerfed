@@ -9,7 +9,7 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       input: {
-        main: resolve(__dirname, 'final01/Index.html'),
+        main: resolve(__dirname, 'final01/index.html'),
         admin: resolve(__dirname, 'final01/Admin.html')
       }
     }
