@@ -225,12 +225,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         if ((role === "admin" || isAdminEmail) &&
     window.location.pathname.includes("login.html")) {
 
-    window.location.href = "/admin.html";
+    window.location.href = "/Admin.html";
 }
 
 if (backBtn) {
         backBtn.addEventListener("click", () => {
-            window.location.href = "admin.html";
+            window.location.href = "Admin.html";
         });
 
         backBtn.style.display =
