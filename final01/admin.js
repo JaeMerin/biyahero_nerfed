@@ -38,6 +38,12 @@ document.querySelectorAll('.overlay').forEach(el => {
   el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open'); });
 });
 
+// Add this helper to manage your mobile drawer menu
+function toggleSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  sidebar.classList.toggle('open');
+}
+
 // ── Supabase Fetchers ─────────────────────────────────────────────────────────
 async function fetchProfiles() {
   const { data, error } = await supabase
@@ -289,8 +295,19 @@ async function saveRoute() {
     if (r) r.route_name = name;
     toast('Route updated');
   } else {
-    const { data, error } = await supabase.from('routes').insert({ route_name: name }).select().single();
-    if (error) { toastError('Failed to add route'); return; }
+  const { data, error } = await supabase
+      .from('routes')
+      .insert({ route_name: name })
+      .select()
+      .single();
+      
+    if (error) {
+      // This will now show you the exact Postgres error message and code
+      console.error("Supabase Insert Error:", error);
+      toastError(`Failed to add route: ${error.message}`); 
+      return; 
+    }
+    
     routes.push({ id: data.id,  route_name: data.route_name });
     toast('Route added');
   }
@@ -418,10 +435,8 @@ function renderRS(arr) {
 
 function filterRouteStops(v) {
   const q = v.toLowerCase();
-
   const filtered = routeStops.filter(r => {
     const route = routes.find(x => x.id === r.route_id);
-
     return (
       String(r.id).includes(q) ||
       String(r.route_id).includes(q) ||
@@ -430,8 +445,20 @@ function filterRouteStops(v) {
       (route?.route_name || "").toLowerCase().includes(q)
     );
   });
-
   renderRS(filtered);
+}
+
+// NEW: Function to open the modal for a fresh insert
+function openAddRS() {
+  document.getElementById('ers-id').value    = '';
+  document.getElementById('ers-route').value = '';
+  document.getElementById('ers-stop').value  = '';
+  document.getElementById('ers-order').value = '';
+  
+  const heading = document.getElementById('rs-modal-heading');
+  if (heading) heading.textContent = 'Add Route Stop';
+  
+  document.getElementById('modal-edit-rs').classList.add('open');
 }
 
 function openEditRS(id) {
@@ -441,28 +468,59 @@ function openEditRS(id) {
   document.getElementById('ers-route').value = r.route_id;
   document.getElementById('ers-stop').value  = r.stop_id;
   document.getElementById('ers-order').value = r.stop_order;
+  
+  const heading = document.getElementById('rs-modal-heading');
+  if (heading) heading.textContent = 'Edit Route Stop';
+  
   document.getElementById('modal-edit-rs').classList.add('open');
 }
 
+// UPDATED: Handles both Insert (Add) and Update (Edit) dynamically
 async function saveRS() {
-  const id        = parseInt(document.getElementById('ers-id').value);
-  const route_id  = parseInt(document.getElementById('ers-route').value);
-  const stop_id   = parseInt(document.getElementById('ers-stop').value);
+  const idRaw      = document.getElementById('ers-id').value;
+  const id         = idRaw ? parseInt(idRaw) : null;
+  const route_id   = parseInt(document.getElementById('ers-route').value);
+  const stop_id    = parseInt(document.getElementById('ers-stop').value);
   const stop_order = parseInt(document.getElementById('ers-order').value);
 
-  const { error } = await supabase
-    .from('route_stops')
-    .update({ route_id, stop_id, stop_order })
-    .eq('id', id);
+  if (isNaN(route_id) || isNaN(stop_id) || isNaN(stop_order)) {
+    toastError('All fields must be valid numbers');
+    return;
+  }
 
-  if (error) { toastError('Failed to update route stop'); return; }
+  if (id) {
+    // ── UPDATE EXISTING RECORD ──
+    const { error } = await supabase
+      .from('route_stops')
+      .update({ route_id, stop_id, stop_order })
+      .eq('id', id);
 
-  const r = routeStops.find(x => x.id === id);
-  if (r) { r.route_id = route_id; r.stop_id = stop_id; r.stop_order = stop_order; }
+    if (error) { toastError(`Failed to update: ${error.message}`); return; }
+
+    const r = routeStops.find(x => x.id === id);
+    if (r) { r.route_id = route_id; r.stop_id = stop_id; r.stop_order = stop_order; }
+    toast('Route stop updated');
+  } else {
+    // ── INSERT NEW RECORD ──
+    const { data, error } = await supabase
+      .from('route_stops')
+      .insert({ route_id, stop_id, stop_order })
+      .select()
+      .single();
+
+    if (error) { toastError(`Failed to add: ${error.message}`); return; }
+    
+    routeStops.push({
+      id:         data.id,
+      route_id:   data.route_id,
+      stop_id:    data.stop_id,
+      stop_order: data.stop_order,
+    });
+    toast('Route stop added');
+  }
 
   closeModal('modal-edit-rs');
   renderRS(routeStops);
-  toast('Route stop updated');
 }
 
 async function deleteRS(id) {
@@ -493,11 +551,11 @@ async function logout() {
 Object.assign(window, {
   showSection,
   logout,
-  renderDashboard,
+  renderDashboard, toggleSidebar,
   filterProfiles, openEditProfile, saveProfile, openDeleteProfile, confirmDeleteProfile,
   filterRoutes, openAddRoute, openEditRoute, saveRoute, deleteRoute,
   filterStops, openAddStop, openEditStop, saveStop, deleteStop,
-  renderRS, filterRouteStops , openEditRS, saveRS, deleteRS,
+  renderRS, filterRouteStops , openAddRS, openEditRS, saveRS, deleteRS,
   closeModal, toast,
 });
 

@@ -58,6 +58,9 @@
   <button class="btn btn-danger" onclick="logout()">
     <i class="ti ti-logout"></i> Logout
   </button>
+  <div class="menu-toggle" id="menuToggle" onclick="toggleSidebar()">
+    <i class="ti ti-menu-2"></i>
+  </div>
 </div>
     </header>
 
@@ -192,7 +195,10 @@
                 <i class="ti ti-search" style="font-size:14px;color:var(--text-tertiary)"></i>
                 <input type="text" placeholder="Search Route name or id" id="rs-search" oninput="filterRouteStops(this.value)">
               </div>
-            <span class="badge badge-blue" id="rs-count">12 records</span>
+            <span class="badge badge-blue" id="rs-count"> records</span>
+            <button class="btn btn-blue" onclick="openAddRS()">
+            <i class="ti ti-plus"></i> Add Route Stop
+            </button>
           </div>
           <table>
             <colgroup><col style="width:50px"><col style="width:90px"><col style="width:90px"><col style="width:90px"><col><col style="width:100px"></colgroup>

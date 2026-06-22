@@ -101,6 +101,52 @@
     text-transform: uppercase;
     letter-spacing: 0.06em;
   }
+
+/* ── Sidebar & Toggle Responsive Rules ── */
+
+/* Base state for desktop: hide the hamburger button */
+.menu-toggle {
+  display: none;
+  font-size: 22px;
+  color: var(--text-primary);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: var(--radius-md);
+  display: none; /* Hidden by default */
+  align-items: center;
+  justify-content: center;
+  transition: background 0.1s;
+}
+.menu-toggle:hover {
+  background: var(--bg-secondary);
+}
+
+/* Mobile Breakpoint */
+@media (max-width: 768px) {
+  .menu-toggle {
+    display: inline-flex; /* Shows only on mobile screens */
+  }
+
+  .sidebar {
+    transform: translateX(-100%); /* Slides completely off-screen left */
+    transition: transform 0.25s ease-in-out;
+    box-shadow: 4px 0 15px rgba(0,0,0,0.1);
+  }
+
+  /* When this class is applied via JS, slide it into view */
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .main {
+    margin-left: 0; /* Let content fill the viewport width on mobile */
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
   .nav-item {
     display: flex;
     align-items: center;
