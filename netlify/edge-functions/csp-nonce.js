@@ -5,13 +5,14 @@ export default async (request, context) => {
   );
 
   const csp = [
-    "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}'`,
-    "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob:",
-    `connect-src 'self' https://gfppsqhbvzluefvzvnev.supabase.co`,
-    "frame-ancestors 'none'",
-  ].join("; ");
+  "default-src 'self'",
+  `script-src 'self' 'nonce-${nonce}' https://unpkg.com https://www.tuqlas.com`,
+  "style-src 'self' 'unsafe-inline' https://unpkg.com",
+  "img-src 'self' data: blob: https://unpkg.com https://www.tuqlas.com",
+  "connect-src 'self' https://gfppsqhbvzluefvzvnev.supabase.co https://www.tuqlas.com https://unpkg.com",
+  "frame-src 'none'",
+  "frame-ancestors 'none'",
+].join("; ");
 
   const html = await response.text();
 
