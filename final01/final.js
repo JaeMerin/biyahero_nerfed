@@ -353,32 +353,29 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // METHOD 1 — catch the event if it fires after listener is ready
+// METHOD 1 — Safe. Handled natively by Supabase event states
     supabase.auth.onAuthStateChange((event, session) => {
-        console.log("Auth event:", event); // debug
+        console.log("Auth event:", event); 
         if (event === "PASSWORD_RECOVERY") {
             openResetModal();
         }
     });
 
-    // METHOD 2 — catch it if the event already fired before listener registered
+    // METHOD 2 — Fixed: Only trigger if the hash explicitly states type=recovery
     supabase.auth.getSession().then(({ data: { session } }) => {
-        console.log("getSession result:", session); // debug
+        console.log("getSession result:", session); 
         const hash = window.location.hash;
-        const isRecovery =
-            hash.includes("type=recovery") ||
-            hash.includes("access_token");
+        const isRecovery = hash.includes("type=recovery"); // Fixed here
 
         if (session && isRecovery) {
             openResetModal();
         }
     });
 
-    // METHOD 3 — nuclear fallback, check hash directly
+    // METHOD 3 — Fixed: Only trigger if the hash explicitly states type=recovery
     const hash = window.location.hash;
-    if (hash.includes("type=recovery") || hash.includes("access_token")) {
-        console.log("Hash recovery detected, opening modal"); // debug
-        // slight delay to let Supabase process the token first
+    if (hash.includes("type=recovery")) { // Fixed here
+        console.log("Hash recovery detected, opening modal"); 
         setTimeout(openResetModal, 500);
     }
 
