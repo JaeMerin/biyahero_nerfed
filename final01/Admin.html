@@ -35,6 +35,9 @@
       <button class="nav-item" onclick="showSection('route-stops')">
         <i class="ti ti-list-details"></i> Route stops
       </button>
+      <button class="nav-item" onclick="showSection('fares')">
+        <i class="ti ti-coin"></i> Fares
+      </button>
     </nav>
   </aside>
 
@@ -156,6 +159,7 @@
           </table>
         </div>
       </div>
+      
     </section>
 
     <!-- STOPS -->
@@ -201,7 +205,7 @@
             </button>
           </div>
           <table>
-            <colgroup><col style="width:50px"><col style="width:90px"><col style="width:90px"><col style="width:90px"><col><col style="width:100px"></colgroup>
+            <colgroup><col style="width:60px"><col style="width:160px"><col style="width:160px"><col style="width:100px"></colgroup>
             <thead>
               <tr><th>ID</th><th>Route ID</th><th>Stop ID</th><th>Order</th><th>Route name</th><th>Actions</th></tr>
             </thead>
@@ -210,6 +214,33 @@
         </div>
       </div>
     </section>
+
+    <!-- FARES -->
+<section id="section-fares" class="section">
+  <div class="content">
+    <div class="table-card">
+      <div class="table-header">
+        <div class="table-header-left">
+          <div class="table-title">Fare settings</div>
+          <div class="search-box">
+            <i class="ti ti-search" style="font-size:14px;color:var(--text-tertiary)"></i>
+            <input type="text" placeholder="Search route name…" oninput="filterFares(this.value)">
+          </div>
+        </div>
+        <button class="btn btn-blue" onclick="openAddFare()">
+          <i class="ti ti-plus"></i> Add fare
+        </button>
+      </div>
+      <table>
+        <colgroup><col style="width:60px"><col><col style="width:120px"><col style="width:130px"><col style="width:100px"></colgroup>
+        <thead>
+          <tr><th>ID</th><th>Type</th><th>Base fare (₱)</th><th>Per km rate (₱)</th><th>Actions</th></tr>
+        </thead>
+        <tbody id="fares-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
 
   </div>
 </div>
@@ -328,6 +359,39 @@
     <div class="modal-footer">
       <button class="btn" onclick="closeModal('modal-edit-rs')">Cancel</button>
       <button class="btn btn-blue" onclick="saveRS()">
+        <i class="ti ti-check"></i> Save
+      </button>
+    </div>
+  </div>
+</div>
+<!-- Edit / Add fare -->
+<div class="overlay" id="modal-edit-fare">
+  <div class="modal">
+    <h3 id="fare-modal-heading">Add fare</h3>
+<p class="modal-sub">Set base fare and per-km rate for a route</p>
+<input type="hidden" id="ef-id">
+<div class="form-row">
+  <label class="form-label">Jeepney type</label>
+  <select class="form-input" id="ef-type">
+    <option value="Traditional">Traditional</option>
+    <option value="Modern">Modern</option>
+  </select>
+</div>
+<div class="form-row">
+  <label class="form-label">Base fare (₱)</label>
+  <input class="form-input" type="number" step="0.01" id="ef-base" placeholder="13.00">
+</div>
+    <div class="form-row">
+      <label class="form-label">Per km rate (₱)</label>
+      <input class="form-input" type="number" step="0.01" id="ef-perkm" placeholder="1.80">
+    </div>
+    <div class="fare-preview" id="fare-preview">
+      <div class="fare-preview-title">Fare preview</div>
+      <div class="fare-preview-grid" id="fare-preview-grid"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-edit-fare')">Cancel</button>
+      <button class="btn btn-blue" onclick="saveFare()">
         <i class="ti ti-check"></i> Save
       </button>
     </div>

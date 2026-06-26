@@ -100,7 +100,7 @@ const sectionMeta = {
   routes:       ['Routes',         'Manage jeepney routes'],
   stops:        ['Stops',          'Manage route stops'],
   'route-stops':['Route stops',    'Route–stop junction table'],
-  // fare:         ['Fare settings',  'Configure fare computation'],
+  fares:         ['Fare settings',  'Configure fare computation'],
 };
 
 async function showSection(key) {
@@ -136,7 +136,12 @@ async function showSection(key) {
     await Promise.all([fetchRoutes(), fetchRouteStops()]);
     renderRS(routeStops);
   }
+  if (key === 'fares') {
+     await fetchFares();
+  renderFares(fares);
 }
+}
+
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 function renderDashboard() {
@@ -448,6 +453,143 @@ function filterRouteStops(v) {
   renderRS(filtered);
 }
 
+// ── Fares ─────────────────────────────────────────────────────────────────────
+let fares = [];
+
+async function fetchFares() {
+  const { data, error } = await supabase
+    .from('fares')
+    .select('*')
+    .order('id', { ascending: true });
+
+  if (error) { toastError('Failed to load fares'); return; }
+  fares = data.map(f => ({
+    id:          f.id,
+    base_fare:   f.Base_rate,
+    fare_per_km: f.Per_kmrate,
+    jeepney_type:  f.Jeepney_type ?? '—',
+  }));
+}
+
+function renderFares(arr) {
+  document.getElementById('fares-tbody').innerHTML = arr.map(f => `
+    <tr>
+      <td style="color:var(--text-secondary)">${f.id}</td>
+      <td>${f.jeepney_type}</td>
+      <td>₱${Number(f.base_fare).toFixed(2)}</td>
+      <td>₱${Number(f.fare_per_km).toFixed(2)} / km</td>
+      <td>
+        <div class="action-btns">
+          <button class="icon-btn" onclick="openEditFare(${f.id})" title="Edit fare">
+            <i class="ti ti-edit"></i>
+          </button>
+          <button class="icon-btn del" onclick="deleteFare(${f.id})" title="Delete fare">
+            <i class="ti ti-trash"></i>
+          </button>
+        </div>
+      </td>
+    </tr>`).join('');
+}
+
+function filterFares(v) {
+  const q = v.toLowerCase();
+  renderFares(fares.filter(f =>
+    String(f.base_fare).includes(q) ||
+    String(f.fare_per_km).includes(q) ||
+    f.jeepney_type.toLowerCase().includes(q)
+  ));
+}
+
+function populateRouteSelect(selectedRouteId = null) {
+  const sel = document.getElementById('ef-route');
+  sel.innerHTML = routes.map(r =>
+    `<option value="${r.id}" ${r.id === selectedRouteId ? 'selected' : ''}>${r.route_name}</option>`
+  ).join('');
+}
+
+function updateFarePreview() {
+  const base  = parseFloat(document.getElementById('ef-base').value)  || 0;
+  const perkm = parseFloat(document.getElementById('ef-perkm').value) || 0;
+  const grid  = document.getElementById('fare-preview-grid');
+  const kms   = [1, 2, 4, 5, 8, 10, 15, 20];
+  grid.innerHTML = kms.map(km => `
+    <div class="fare-chip">
+      <div class="fare-chip-km">${km} km</div>
+      <div class="fare-chip-val">₱${(base + perkm * km).toFixed(2)}</div>
+    </div>`).join('');
+}
+
+function openAddFare() {
+  document.getElementById('ef-id').value      = '';
+  document.getElementById('ef-type').value    = 'Traditional';
+  document.getElementById('ef-base').value    = '13.00';
+  document.getElementById('ef-perkm').value   = '1.80';
+  document.getElementById('fare-modal-heading').textContent = 'Add fare';
+  updateFarePreview();
+  document.getElementById('ef-base').oninput  = updateFarePreview;
+  document.getElementById('ef-perkm').oninput = updateFarePreview;
+  document.getElementById('modal-edit-fare').classList.add('open');
+}
+
+function openEditFare(id) {
+  const f = fares.find(x => x.id === id);
+  if (!f) return;
+  document.getElementById('ef-id').value      = f.id;
+  document.getElementById('ef-type').value    = f.jeepney_type;
+  document.getElementById('ef-base').value    = f.base_fare;
+  document.getElementById('ef-perkm').value   = f.fare_per_km;
+  document.getElementById('fare-modal-heading').textContent = 'Edit fare';
+  updateFarePreview();
+  document.getElementById('ef-base').oninput  = updateFarePreview;
+  document.getElementById('ef-perkm').oninput = updateFarePreview;
+  document.getElementById('modal-edit-fare').classList.add('open');
+}
+async function saveFare() {
+  const idRaw       = document.getElementById('ef-id').value;
+  const id          = idRaw ? parseInt(idRaw) : null;
+  const jeepneyType = document.getElementById('ef-type').value;
+  const base_fare    = parseFloat(document.getElementById('ef-base').value);
+  const fare_per_km  = parseFloat(document.getElementById('ef-perkm').value);
+
+  if (isNaN(base_fare) || isNaN(fare_per_km)) {
+    toastError('Both fields must be valid numbers'); return;
+  }
+  if (!jeepneyType) {
+    toastError('Please select a jeepney type'); return;
+  }
+
+  if (id) {
+    const { error } = await supabase
+      .from('fares')
+      .update({ Base_rate: base_fare, Per_kmrate: fare_per_km, Jeepney_type: jeepneyType })
+      .eq('id', id);
+    if (error) { toastError(`Failed to update fare: ${error.message}`); return; }
+    const f = fares.find(x => x.id === id);
+    if (f) { f.base_fare = base_fare; f.fare_per_km = fare_per_km; f.jeepney_type = jeepneyType; }
+    toast('Fare updated');
+  } else {
+    const { data, error } = await supabase
+      .from('fares')
+      .insert({ Base_rate: base_fare, Per_kmrate: fare_per_km, Jeepney_type: jeepneyType })
+      .select()
+      .single();
+    if (error) { toastError(`Failed to add fare: ${error.message}`); return; }
+    fares.push({ id: data.id, base_fare: data.Base_rate, fare_per_km: data.Per_kmrate, jeepney_type: data.Jeepney_type });
+    toast('Fare added');
+  }
+
+  closeModal('modal-edit-fare');
+  renderFares(fares);
+}
+
+async function deleteFare(id) {
+  const { error } = await supabase.from('fares').delete().eq('id', id);
+  if (error) { toastError('Failed to delete fare'); return; }
+  fares = fares.filter(x => x.id !== id);
+  renderFares(fares);
+  toast('Fare deleted');
+}
+
 // NEW: Function to open the modal for a fresh insert
 function openAddRS() {
   document.getElementById('ers-id').value    = '';
@@ -549,6 +691,7 @@ async function logout() {
 
 // ── Expose to global scope (required for onclick in HTML with ES modules) ─────
 Object.assign(window, {
+  filterFares, openAddFare, openEditFare, saveFare, deleteFare,
   showSection,
   logout,
   renderDashboard, toggleSidebar,
