@@ -758,27 +758,6 @@ function redrawLockedRoute() {
                 announce(`Approaching ${stop.name}`);
             }
 
-            // // ── One stop before a TRANSFER ────────────────────────────────────
-            // if (
-            //     nextStop &&
-            //     transferFromIds.has(nextStop.id) &&
-            //     distToStop <= 200 &&
-            //     lastTransferAnnouncement !== `pre-transfer-${nextStop.id}`
-            // ) {
-            //     lastTransferAnnouncement = `pre-transfer-${nextStop.id}`;
-            //     announce(`Prepare to transfer at the next stop, ${nextStop.name}`);
-            // }
-
-            // ── AT the transfer stop ──────────────────────────────────────────
-            // if (
-            //     transferFromIds.has(stop.id) &&
-            //     distToStop <= 150 &&
-            //     lastTransferAnnouncement !== `transfer-${stop.id}`
-            // ) {
-            //     lastTransferAnnouncement = `transfer-${stop.id}`;
-            //     announce(`Transfer now at ${stop.name}`);
-            // }
-
             // ── One stop before FINAL endpoint ───────────────────────────────
             const isLastSegmentStop = i === remainingPath.length - 2;
             if (
