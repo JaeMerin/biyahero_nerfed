@@ -50,10 +50,6 @@ function toggleFormFields(isActive, formSelector) {
 // SECTION 2 — LOGIN / REGISTER WRAPPER TOGGLE
 // ============================================================
 
-// ============================================================
-// SECTION 2 — LOGIN / REGISTER WRAPPER TOGGLE
-// ============================================================
-
 const wrapper      = document.querySelector(".wrapper");
 const registerLink = document.querySelector(".register-link");
 const loginLink    = document.querySelector(".login-link");
@@ -69,7 +65,7 @@ if (registerLink) registerLink.addEventListener('click', (e) => {
     toggleFormFields(false, '.form-box.login');
     toggleFormFields(true, '.form-box.register');
 
-    // Disable forgot password link when on register view
+
     const forgotLink = document.getElementById("forgotPasswordLink");
     if (forgotLink) {
         forgotLink.style.pointerEvents = "none";
@@ -83,7 +79,7 @@ if (loginLink) loginLink.addEventListener('click', (e) => {
     toggleFormFields(true, '.form-box.login');
     toggleFormFields(false, '.form-box.register');
 
-    // Re-enable forgot password link when back on login view
+
     const forgotLink = document.getElementById("forgotPasswordLink");
     if (forgotLink) {
         forgotLink.style.pointerEvents = "";
@@ -195,7 +191,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     const logoutBtn = document.getElementById("logoutBtn");
     const backBtn   = document.getElementById("dashboard");
 
-    // 🌟 1. Lift variables to the outer function scope so they don't cause reference crashes
     let role = null;
     let isAdminEmail = false;
 
@@ -207,21 +202,19 @@ document.addEventListener("DOMContentLoaded", async () => {
         loginBtn.style.display  = "none";
         logoutBtn.style.display = "block";
 
-// 🌟 FETCH REAL-TIME ROLE FROM PUBLIC.PROFILES TABLE
         const { data: profile, error } = await supabase
             .from("profiles")
             .select("role")
-            .eq("id", user.id) // Matches the logged-in user's unique ID
+            .eq("id", user.id) 
             .maybeSingle();
 
         if (error) {
             console.error("Error fetching user profile role:", error.message);
         }
 
-        const role = profile?.role; // Grabs the "admin" value you typed in the table
+        const role = profile?.role;
         const isAdminEmail = user.email === "admin@example.com"; 
 
-        // 🌟 EVALUATE REDIRECTS
         if ((role === "admin" || isAdminEmail) &&
     window.location.pathname.includes("login.html")) {
 
@@ -317,7 +310,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
     function openResetModal() {
-        console.log("openResetModal called"); // debug
+        console.log("openResetModal called"); 
         const modal = document.getElementById("resetPasswordModal");
         if (!modal) {
             console.error("Modal not found in DOM!");
@@ -365,7 +358,7 @@ document.addEventListener("DOMContentLoaded", () => {
     supabase.auth.getSession().then(({ data: { session } }) => {
         console.log("getSession result:", session); 
         const hash = window.location.hash;
-        const isRecovery = hash.includes("type=recovery"); // Fixed here
+        const isRecovery = hash.includes("type=recovery"); 
 
         if (session && isRecovery) {
             openResetModal();
@@ -374,7 +367,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // METHOD 3 — Fixed: Only trigger if the hash explicitly states type=recovery
     const hash = window.location.hash;
-    if (hash.includes("type=recovery")) { // Fixed here
+    if (hash.includes("type=recovery")) { 
         console.log("Hash recovery detected, opening modal"); 
         setTimeout(openResetModal, 500);
     }

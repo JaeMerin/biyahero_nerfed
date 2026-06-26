@@ -2,11 +2,9 @@ import supabase from "./auth.js";
 import { Heap } from "heap-js";
 
 
-// ============================================================
 // CONSTANTS
-// ============================================================
 const ICCT_POSITION     = [14.61768, 121.10261];
-const MAX_DISTANCE      = 15000;
+const MAX_DISTANCE      = 5000;
 const ICCT_WALK_RADIUS  = 1000;
 const TRANSFER_LIMIT    = 500;
 const WALK_SPEED        = 1.4;
@@ -28,9 +26,7 @@ const GRAPH_CACHE_KEY    = "jeepney_graph_v2";
 const API_KEY = import.meta.env.VITE_GEOAPIFY_KEY;
 
 
-// ============================================================
 // STATE
-// ============================================================
 let stops                 = [];
 let stopById              = {};
 let graph                 = null;
@@ -66,9 +62,7 @@ let remainingPath         = null;
 const geoCache = new Map();
 
 
-// ============================================================
 // MAP SETUP
-// ============================================================
 const map = L.map("map", {
     attributionControl: false,
 }).setView(ICCT_POSITION, 15);
@@ -153,9 +147,7 @@ legendToggle.onAdd = function (map) {
 legendToggle.addTo(map);
 
 
-// ============================================================
 // MAP CLEANUP
-// ============================================================
 function clearMapRoutes() {
     jeepneyRouteLayers.forEach(layer => map.removeLayer(layer));
     jeepneyRouteLayers = [];
@@ -175,9 +167,7 @@ function clearMapRoutes() {
 }
 
 
-// ============================================================
 // DATA LOADING
-// ============================================================
 async function loadRouteNames() {
     if (Object.keys(routeNames).length > 0) return routeNames;
 
@@ -218,9 +208,7 @@ async function loadStops() {
 }
 
 
-// ============================================================
 // GRAPH BUILDER
-// ============================================================
 async function buildGraph() {
     if (graph) return graph;
 
@@ -303,7 +291,7 @@ async function buildGraph() {
         }
     }
 
-    // ── FIX #3: O(n) grid-bucket transfer detection (was O(n²)) ──────────
+    // O(n) grid-bucket transfer detection (was O(n²)) ──────────
     const BUCKET_SIZE = 0.005; // ~500 m in degrees
     const bucket      = val => Math.floor(val / BUCKET_SIZE);
     const bucketMap   = {};
@@ -372,9 +360,7 @@ async function buildGraph() {
 }
 
 
-// ============================================================
 // TRANSFER DETECTION
-// ============================================================
 function detectTransfers(path) {
     const transfers = [];
 
@@ -390,9 +376,7 @@ function detectTransfers(path) {
 }
 
 
-// ============================================================
 // ROUTING API (with cache)
-// ============================================================
 async function getRoute(lat1, lng1, lat2, lng2) {
     const key = `${lat1.toFixed(4)},${lng1.toFixed(4)}-${lat2.toFixed(4)},${lng2.toFixed(4)}`;
 
@@ -417,9 +401,7 @@ async function getRoute(lat1, lng1, lat2, lng2) {
 }
 
 
-// ============================================================
 // NEAREST STOP
-// ============================================================
 async function getNearestStop(lat, lng) {
     const candidates = stops.filter(stop =>
         map.distance([lat, lng], [stop.lat, stop.lng]) <= CANDIDATE_RADIUS
@@ -436,10 +418,7 @@ async function getNearestStop(lat, lng) {
     return results.filter(Boolean).sort((a, b) => a.walkTime - b.walkTime)[0];
 }
 
-
-// ============================================================
 // DIJKSTRA
-// ============================================================
 function dijkstra(graph, start) {
     start = String(start);
 
@@ -486,9 +465,7 @@ function dijkstra(graph, start) {
 }
 
 
-// ============================================================
 // PATH BUILDER
-// ============================================================
 function buildPath(previous, start, goal) {
     start = String(start);
     goal  = String(goal);
@@ -506,9 +483,7 @@ function buildPath(previous, start, goal) {
 }
 
 
-// ============================================================
 // USER MARKER
-// ============================================================
 function updateUserMarker(lat, lng) {
     if (!userMarker) {
         userMarker = L.marker([lat, lng])
@@ -526,9 +501,7 @@ function updateUserMarker(lat, lng) {
 }
 
 
-// ============================================================
-// TOAST + ANNOUNCE  (FIX #4)
-// ============================================================
+// TOAST + ANNOUNCE
 function showToast(message, durationMs = 4000) {
     const toast = document.getElementById("announcementToast");
     if (!toast) return;
@@ -545,9 +518,7 @@ function announce(text) {
 }
 
 
-// ============================================================
 // DRAW ROUTES
-// ============================================================
 async function drawWalkingRoute(startLat, startLng, endLat, endLng, type = "start") {
     const data = await getRoute(startLat, startLng, endLat, endLng);
     if (!data?.features?.length) return;
@@ -610,9 +581,7 @@ function drawJeepneySegments(path, transfers) {
 }
 
 
-// ============================================================
 // FARE CALCULATORS
-// ============================================================
 function calculateTraditionalFare(distanceInMeters, isDiscounted = false) {
     const distanceKm     = distanceInMeters / 1000;
     const baseKm         = 4;
@@ -634,9 +603,7 @@ function calculateModernFare(distanceInMeters, isDiscounted = false) {
 }
 
 
-// ============================================================
-// ETA CALCULATOR  (FIX #5)
-// ============================================================
+// ETA CALCULATOR 
 function calcETAMinutes(displayPath) {
     let totalSeconds = 0;
     for (let i = 0; i < displayPath.length - 1; i++) {
@@ -648,9 +615,7 @@ function calcETAMinutes(displayPath) {
 }
 
 
-// ============================================================
 // ROUTE LOCK
-// ============================================================
 window.lockRoute = function () {
     if (!globalActivePathData) return;
 
@@ -717,11 +682,9 @@ function updateLockUI(locked) {
 }
 
 
-// ============================================================
-// FIX #1 — redrawLockedRoute
+//redrawLockedRoute
 // Redraws traveled portion in gray and remaining portion in blue.
 // Guarded by _lastRedrawLength so it only runs when the path actually shrinks.
-// ============================================================
 function redrawLockedRoute() {
     const currentLength = remainingPath.length;
     if (currentLength === _lastRedrawLength) return; // nothing changed
@@ -760,9 +723,7 @@ function redrawLockedRoute() {
 }
 
 
-// ============================================================
 // LOCKED ROUTE PROGRESS TRACKER
-// ============================================================
 function updateLockedRouteProgress(lat, lng) {
     if (!routeLocked || !remainingPath || remainingPath.length < 2) return;
 
@@ -826,7 +787,7 @@ function updateLockedRouteProgress(lat, lng) {
 
     if (passedCount > 0) {
         remainingPath = remainingPath.slice(passedCount);
-        redrawLockedRoute(); // _lastRedrawLength guard lives inside
+        redrawLockedRoute(); 
         renderRouteDetails();
     }
 
@@ -857,9 +818,7 @@ function updateLockedRouteProgress(lat, lng) {
 }
 
 
-// ============================================================
 // STATUS BAR
-// ============================================================
 function setStatusMessage(message, type = "info") {
     const bar = document.getElementById("routeStatusBar");
     if (!bar) return;
@@ -877,9 +836,7 @@ function setStatusMessage(message, type = "info") {
 }
 
 
-// ============================================================
 // MAIN ROUTE PROCESSOR
-// ============================================================
 async function processUserLocation(lat, lng, force = false) {
     updateUserMarker(lat, lng);
 
@@ -989,18 +946,14 @@ async function processUserLocation(lat, lng, force = false) {
 }
 
 
-// ============================================================
 // JEEPNEY TYPE TOGGLE
-// ============================================================
 window.setJeepneyType = function (type) {
     selectedJeepneyType = type;
     renderRouteDetails();
 };
 
 
-// ============================================================
 // ROUTE DETAILS PANEL
-// ============================================================
 function renderRouteDetails() {
     if (!globalActivePathData) return;
 
@@ -1086,7 +1039,7 @@ function renderRouteDetails() {
     const btnOn          = `${btnBase}background-color:#0066ff;color:#fff;`;
     const btnOff         = `${btnBase}background-color:#fff;color:#0066ff;`;
 
-    // FIX #5 — ETA in panel header
+    // ETA in panel header
     const etaMin = calcETAMinutes(displayPath);
 
     const lockBtnHTML = routeLocked
@@ -1178,9 +1131,7 @@ function renderRouteDetails() {
 }
 
 
-// ============================================================
 // DEBOUNCE
-// ============================================================
 function debounce(fn, delay = 400) {
     let timer;
     return (...args) => {
@@ -1190,9 +1141,7 @@ function debounce(fn, delay = 400) {
 }
 
 
-// ============================================================
 // LOCATION SEARCH
-// ============================================================
 const input = document.getElementById("locationInput");
 const box   = document.getElementById("suggestions");
 
@@ -1245,9 +1194,7 @@ function renderSuggestions(features) {
 }
 
 
-// ============================================================
 // GPS TRACKING
-// ============================================================
 function startTracking() {
     stopTracking();
 
@@ -1291,9 +1238,7 @@ function stopTracking() {
 }
 
 
-// ============================================================
 // FULLSCREEN CONTROL
-// ============================================================
 const FullscreenControl = L.Control.extend({
     options: { position: "topright" },
 
@@ -1328,9 +1273,7 @@ const FullscreenControl = L.Control.extend({
 map.addControl(new FullscreenControl());
 
 
-// ============================================================
 // RECENTER CONTROL
-// ============================================================
 const RecenterControl = L.Control.extend({
     options: { position: "bottomright" },
 
@@ -1361,9 +1304,7 @@ const RecenterControl = L.Control.extend({
 map.addControl(new RecenterControl());
 
 
-// ============================================================
 // FARE PANEL TOGGLE
-// ============================================================
 window.toggleRoutePanel = function () {
     const panel = document.getElementById("routeInfo");
     const btn   = document.getElementById("toggleRouteBtn");
@@ -1393,9 +1334,7 @@ if (toggleBtn) {
 }
 
 
-// ============================================================
 // PUBLIC API
-// ============================================================
 window.startTracking = startTracking;
 window.stopTracking  = stopTracking;
 

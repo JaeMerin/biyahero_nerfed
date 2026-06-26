@@ -4,9 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ICCT Jeepney Route Planner | Cainta Campus</title>
 
-    <!-- Stylesheets -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet.fullscreen/Control.FullScreen.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
@@ -15,7 +13,7 @@
     <link href="https://cdn.jsdelivr.net/npm/remixicon/fonts/remixicon.css" rel="stylesheet">
     <link rel="stylesheet" href="Final.css">
 
-    <!-- Chatbot -->
+
     <script
         src="https://www.tuqlas.com/chatbot.js"
         data-key="tq_live_677ccd7396940bfabaee440f89a1472f6709ae89"
@@ -28,7 +26,6 @@
 
 <div id="announcementToast"></div>
 
-    <!-- ========== HEADER ========== -->
     <header>
         <div class="logo-group">
             <a href="#home">
@@ -59,17 +56,15 @@
         </div>
     </header>
 
-    <!-- ========== MAIN CONTENT ========== -->
+
     <div class="container" id="home">
 
-        <!-- Hero Section -->
         <section class="hero">
             <h2>Smart Travel for the Modern ICCT Student</h2>
             <p>Plan your route to ICCT Cainta with precision. Calculate fares, manage transfers, and never miss a class.</p>
             <a href="#location-section" class="startbtn" id="click">Start Planning Your Route</a>
         </section>
 
-        <!-- How It Works Section -->
         <section class="how-it-works">
             <h3>How It Works</h3>
 
@@ -106,7 +101,6 @@
             </table>
         </section>
 
-        <!-- Map / Location Section -->
         <section class="location-section" id="location-section">
             <h2>MAPS</h2>
 
@@ -141,7 +135,6 @@
             </div>
         </section>
 
-        <!-- Fare Matrix Section -->
         <div style="text-align: center; margin-top: 3rem;">
    
             <blockquote><b>"Built by the community, for the community. Commute made simple."</b></blockquote>
@@ -157,9 +150,7 @@
         </div>
 
     </div>
-    <!-- /.container -->
-
-    <!-- ========== SERVICES SECTION ========== -->
+ 
     <section class="services" id="services">
         <h2 class="section-title">Our Services</h2>
 
@@ -198,7 +189,6 @@
             </div>
         </div>
 
-        <!-- ========== ABOUT SECTION (nested inside services) ========== -->
         <section class="about" id="about">
             <div class="about-container">
                 <div class="about-image">   
@@ -225,9 +215,7 @@
         </section>
 
     </section>
-    <!-- /.services -->
-
-    <!-- ========== FOOTER ========== -->
+ 
     <footer id="Contact">
         <div class="footer-container">
 
@@ -261,7 +249,6 @@
         </div>
     </footer>
 
-    <!-- ========== LOGIN / REGISTER POPUP ========== -->
     <div id="loginPopup" class="popup-overlay">
         <div class="popup-content login-modal">
             <span class="close-login">&times;</span>
@@ -270,7 +257,6 @@
                 <span class="rotate-bg"></span>
                 <span class="rotate-bg2"></span>
 
-                <!-- Login Form -->
                 <div class="form-box login">
                     <h2 class="title animation" style="--i:0; --j:21;">Login</h2>
                     <form id="LoginForm">
@@ -294,13 +280,11 @@
                     </form>
                 </div>
 
-                <!-- Login Info Text -->
                 <div class="info-text login">
                     <h2 class="animation" style="--i:0; --j:20;">Welcome Back!</h2>
                     <p class="animation" style="--i:1; --j:21;">We, Group 14, welcome you to our family.</p>
                 </div>
 
-                <!-- Register Form -->
                 <div class="form-box register">
                     <h2 class="title animation" style="--i:18; --j:1;">Sign Up</h2>
                     <form class="RegisterForm">
@@ -326,7 +310,6 @@
                     </form>
                 </div>
 
-                <!-- Forgot Password Modal -->
                 <div id="forgotModal" class="modal">
                     <div class="modal-content">
                         <span class="close-modal">&times;</span>
@@ -346,7 +329,6 @@
                     </div>
                 </div>
 
-                <!-- Register Info Text -->
                 <div class="info-text register">
                     <h2 class="animation" style="--i:17; --j:0;">Group 14</h2>
                     <p class="animation" style="--i:18; --j:1;">Jeepney Route Planning System for ICCT Cainta.</p>
@@ -355,9 +337,7 @@
             </div>
         </div>
     </div>
-    <!-- /#loginPopup -->
-
-    <!-- ========== RESET PASSWORD MODAL ========== -->
+  
     <div id="resetPasswordModal" class="popup-overlay" style="display: none;">
         <div class="popup-content">
 
@@ -391,17 +371,12 @@
 
         </div>
     </div>
-    <!-- /#resetPasswordModal -->
-
-    <!-- ========== SCRIPTS ========== -->
-
-    <!-- Leaflet & Plugins (must load before map.js) -->
+  
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
     <script src="https://unpkg.com/leaflet.fullscreen/Control.FullScreen.js"></script>
 
-    <!-- App Modules -->
     <script type="module" src="auth.js"></script>
     <script type="module" src="script.js"></script>
     <script type="module" src="map.js"></script>

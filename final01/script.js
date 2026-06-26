@@ -1,15 +1,11 @@
 import supabase from "../supabaseClient.js";
 import { loginWithUsername, registerUser } from "./auth.js";
 
-// ============================================================
 // RECOVERY DETECT (IMPORTANT)
-// ============================================================
 
 const isRecovery = window.location.hash.includes("access_token");
 
-// ============================================================
 // TOGGLE UI
-// ============================================================
 
 const wrapper = document.querySelector(".wrapper");
 const registerLink = document.querySelector(".register-link");
@@ -25,9 +21,7 @@ loginLink?.addEventListener("click", (e) => {
     wrapper?.classList.remove("active");
 });
 
-// ============================================================
 // LOGIN
-// ============================================================
 
 document.getElementById("LoginForm")?.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -40,16 +34,14 @@ document.getElementById("LoginForm")?.addEventListener("submit", async (e) => {
     if (user) {
         alert("Login successful");
 
-        // FIXED redirect (no origin spam)
+        // redirect (no origin spam)
         window.location.href = "/index.html";
     } else {
         alert("Invalid login");
     }
 });
 
-// ============================================================
 // REGISTER
-// ============================================================
 
 document.querySelector(".RegisterForm")?.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -65,9 +57,7 @@ document.querySelector(".RegisterForm")?.addEventListener("submit", async (e) =>
     }
 });
 
-// ============================================================
 // LOGOUT
-// ============================================================
 
 export async function logout() {
     await supabase.auth.signOut();
