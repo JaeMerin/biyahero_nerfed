@@ -13,18 +13,15 @@
     const STOP_FETCH_LIMIT  = 2000;
     const CANDIDATE_RADIUS  = 2000;
     const END_STOP_RADIUS   = 1000;
-    const MOVE_THRESHOLD    = 50;    // meters — minimum movement to trigger recalculate
-    const PASSED_THRESHOLD  = 80;    // meters — how close to a stop before it's "passed"
+    const PASSED_THRESHOLD  = 80;   
 
 
-    // Graph cache: rebuild after 6 hours
     const GRAPH_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
     const GRAPH_CACHE_KEY    = "jeepney_graph_v2";
 
     const API_KEY = import.meta.env.VITE_GEOAPIFY_KEY;
 
 
-    // STATE
     let stops                 = [];
     let stopById              = {};
     let graph                 = null;
@@ -54,7 +51,6 @@
         modern:      { base_rate: 15.00, per_kmrate: 2.20 }
     };
 
-    // Route lock state
     let routeLocked           = false;
     let lockedPathData        = null;
     let remainingPath         = null;
@@ -196,7 +192,7 @@
 
 async function loadFareRates() {
     try {
-        // Fetch rows using the exact casing from your database schema
+        
         const { data, error } = await supabase
             .from('fares')
             .select('Jeepney_type, Base_rate, Per_kmrate');
@@ -205,21 +201,21 @@ async function loadFareRates() {
 
         if (data && data.length > 0) {
             data.forEach(row => {
-                // FIX: Use capital 'Jeepney_type' to read the row data safely
+                
                 if (!row.Jeepney_type) return; 
                 
-                const type = row.Jeepney_type.toLowerCase(); // Converts 'Modern' -> 'modern'
+                const type = row.Jeepney_type.toLowerCase();
                 
-                // Map the capitalized DB values directly to your lowercase memory object
+                
                 if (fareRates[type]) {
                     fareRates[type].base_rate  = parseFloat(row.Base_rate);
                     fareRates[type].per_kmrate = parseFloat(row.Per_kmrate);
                 }
             });
-            console.log("🎉 Live fares successfully loaded from Supabase:", fareRates);
+            
         }
     } catch (err) {
-        console.error("❌ Error loading fare rates from database:", err);
+        console.error("Error loading fare rates from database:", err);
     }
 }
 
@@ -543,21 +539,6 @@ function processSpeechQueue() {
         }
     }
 
-    // async function drawTransferRoute(startLat, startLng, endLat, endLng) {
-    //     const data = await getRoute(startLat, startLng, endLat, endLng);
-    //     if (!data?.features?.length) return;
-
-    //     const latlngs = data.features[0].geometry.coordinates[0].map(c => [c[1], c[0]]);
-
-    //     const layer = L.polyline(latlngs, {
-    //         color:     "yellow",
-    //         weight:    4,
-    //         dashArray: "5,10",
-    //     }).addTo(map);
-
-    //     transferWalkingLayers.push(layer);
-    // }
-
 function drawJeepneySegments(path) {
     const latlngs = path
         .map(id => stopById[id])
@@ -577,31 +558,30 @@ function drawJeepneySegments(path) {
 
     // FARE CALCULATORS
     function calculateJeepneyFare(distanceInMeters, jeepneyType, isDiscounted = false) {
-        // 1. Double check that distance is a valid number, default to 0 if broken
+        
         const validDistance = Number(distanceInMeters) || 0;
         if (validDistance <= 0) return 0;
 
         const typeKey = String(jeepneyType).toLowerCase();
         const rates   = fareRates[typeKey] || fareRates['traditional'] || {};
         
-        // 2. SAFE READING: Look for Capitalized, then lowercase, then fallback to defaults
-        // This stops 'undefined' from leaking into the math equations and causing NaN
+       
         const baseRate = rates.Base_rate ?? rates.base_rate ?? (typeKey === 'modern' ? 17.00 : 14.00);
         const perKmRate = rates.Per_kmrate ?? rates.per_kmrate ?? (typeKey === 'modern' ? 2.40 : 2.00);
         
         const distanceKm = validDistance / 1000;
-        const baseKm     = 4; // Standard base distance limit
+        const baseKm     = 4; 
         
-        // 3. Apply 20% regulatory discounts safely
+        
         let baseFare       = isDiscounted ? (baseRate * 0.80) : baseRate;
         let succeedingRate = isDiscounted ? (perKmRate * 0.80) : perKmRate;
 
-        // If within the first 4 kilometers, return the base fare
+        
         if (distanceKm <= baseKm) {
             return Math.round(baseFare * 100) / 100;
         }
         
-        // Calculate total using real-world rounding up logic
+        
         const excessKm  = Math.ceil(distanceKm - baseKm);
         const totalFare = baseFare + (excessKm * succeedingRate);
 
@@ -661,7 +641,7 @@ function drawJeepneySegments(path) {
         const unlockBtn     = document.getElementById("unlockRouteBtn");
         const badge         = document.getElementById("routeLockBadge");
         const locationInput = document.getElementById("locationInput");
-        const useLocBtn     = document.getElementById("useLocationBtn"); // adjust to your button's actual ID
+        const useLocBtn     = document.getElementById("useLocationBtn"); 
 
         if (lockBtn)   lockBtn.style.display   = locked ? "none"         : "inline-block";
         if (unlockBtn) unlockBtn.style.display = locked ? "inline-block" : "none";
@@ -687,9 +667,6 @@ function drawJeepneySegments(path) {
     }
 
 
-    //redrawLockedRoute
-    // Redraws traveled portion in gray and remaining portion in blue.
-    // Guarded by _lastRedrawLength so it only runs when the path actually shrinks.
 function redrawLockedRoute() {
     const currentLength = remainingPath.length;
 
@@ -698,7 +675,6 @@ function redrawLockedRoute() {
     _lastRedrawLength = currentLength;
 
 
-    // Clear old jeepney lines
     jeepneyRouteLayers.forEach(layer => map.removeLayer(layer));
     jeepneyRouteLayers = [];
 
@@ -828,14 +804,12 @@ function redrawLockedRoute() {
     }
 
 
-    // MAIN ROUTE PROCESSOR (Optimized for Regional Coverage Boundaries)
-    // MAIN ROUTE PROCESSOR
+
     async function processUserLocation(lat, lng, force = false) {
         if (stops.length === 0) {
             await loadStops();
         }
 
-        // Validate 1KM Route Buffer from your current coordinates to a road asset
         const distanceToMainRoute = getDistanceToNearestStop(lat, lng);
         
         if (distanceToMainRoute > 1000) {
@@ -894,6 +868,29 @@ function redrawLockedRoute() {
                 stopTracking();
                 return;
             }
+
+            // After the MAX_DISTANCE check, add this:
+const distToICCT = map.distance([lat, lng], ICCT_POSITION);
+
+if (distToICCT <= ICCT_WALK_RADIUS) {
+    clearMapRoutes();
+    globalActivePathData = null;
+    remainingPath = null;
+
+    // Draw a walking route directly to ICCT
+    await drawWalkingRoute(lat, lng, ICCT_POSITION[0], ICCT_POSITION[1], "end");
+
+    const walkMinutes = Math.round((distToICCT / WALK_SPEED) / 60);
+    showToast(`You're ${Math.round(distToICCT)}m from ICCT — just walk! (~${walkMinutes} min)`);
+    announce(`You are ${Math.round(distToICCT)} meters from ICCT. Just walk. It will take about ${walkMinutes} minutes.`);
+    setStatusMessage(`Walk to ICCT (~${walkMinutes} min, ${Math.round(distToICCT)}m)`, "success");
+
+   showToast(`Just walk! You're ${Math.round(distToICCT)}m from ICCT (~${walkMinutes} min). No jeepney needed.`, 6000);
+
+    const loader = document.getElementById("mapLoader");
+    if (loader) loader.style.display = "none";
+    return;
+}
 
             await buildGraph();
             clearMapRoutes();
@@ -1159,13 +1156,11 @@ globalActivePathData = { path, startStop, bestEndStop };
     const box   = document.getElementById("suggestions");
 
     // ── GEOGRAPHIC BOUNDARY LIMITS ────────────────────────────────────────
-    // This bounding box tightly wraps Montalban (North), Marikina (South), 
-    // Batasan/Litex (West), and the San Mateo border mountains (East).
     const BOUNDS = {
-        minLon: 121.0700, // West limit (Batasan / Litex area)
-        minLat: 14.6150,  // South limit (Lower Marikina / Cainta border)
-        maxLon: 121.1600, // East limit (San Mateo / Rodriguez hills)
-        maxLat: 14.7600   // North limit (Upper Montalban / Rodriguez)
+        minLon: 121.0700, // Batasan / Litex area
+        minLat: 14.6150,  // Lower Marikina / Cainta border
+        maxLon: 121.1600, // San Mateo / Rodriguez hills
+        maxLat: 14.7600   // Upper Montalban / Rodriguez
     };
 
     input.addEventListener("input", debounce(async () => {
@@ -1178,7 +1173,7 @@ globalActivePathData = { path, startStop, bestEndStop };
             const res  = await fetch(url);
             const data = await res.json();
 
-            // Filter: only show results within 1km of ANY stop
+            
             const nearRouteFeatures = (data.features || []).filter(place => {
                 const lat = place.properties.lat;
                 const lon = place.properties.lon;
@@ -1192,7 +1187,6 @@ globalActivePathData = { path, startStop, bestEndStop };
 
             renderSuggestions(nearRouteFeatures);
         } catch {
-            // Silently fail
         }
     }));
 
@@ -1391,7 +1385,6 @@ globalActivePathData = { path, startStop, bestEndStop };
         startTracking();
     };
 
-    // Add this near the bottom, outside any function
     loadStops(); 
     loadFareRates();
 
